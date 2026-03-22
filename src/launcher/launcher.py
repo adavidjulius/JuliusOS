@@ -37,6 +37,9 @@ from apps.timer.timer                     import Timer
 from apps.processkiller.processkiller     import ProcessKiller
 from apps.netmapper.netmapper             import NetMapper
 from apps.sysinfo.sysinfo                 import SysInfo
+from apps.firewall.firewall               import Firewall
+from apps.logviewer.logviewer             import LogViewer
+from apps.usbtools.usbtools               import USBTools
 
 WIDTH, HEIGHT = 240, 240
 FPS           = 30
@@ -77,6 +80,9 @@ APPS = [
     {"name": "ProcKill",  "color": (255, 60,   60)},
     {"name": "NetMapper", "color": (60,  200, 255)},
     {"name": "SysInfo",   "color": (180, 180, 255)},
+    {"name": "Firewall",  "color": (255, 80,   40)},
+    {"name": "Logs",      "color": (200, 255, 200)},
+    {"name": "USB",       "color": (255, 200, 100)},
     {"name": "Settings",  "color": (150, 150, 150)},
 ]
 
@@ -121,6 +127,9 @@ app_instances = {
     "ProcKill"  : ProcessKiller(screen, font_big),
     "NetMapper" : NetMapper(screen, font_big),
     "SysInfo"   : SysInfo(screen, font_big),
+    "Firewall"  : Firewall(screen, font_big),
+    "Logs"      : LogViewer(screen, font_big),
+    "USB"       : USBTools(screen, font_big),
     "Settings"  : Settings(screen, font_big),
 }
 
@@ -208,14 +217,40 @@ while True:
 
 ---
 
-## ✅ Julius OS v0.8 Complete
+## ✅ Julius OS v0.9 Complete
 ```
-ProcessKiller  ✅  view kill filter processes
-NetMapper      ✅  full network host discovery
-SysInfo        ✅  complete system information
-Launcher       ✅  31 apps total
+Firewall      ✅  view add delete iptables rules
+LogViewer     ✅  syslog auth kern dmesg filter
+USBTools      ✅  scan devices details mounts
+Launcher      ✅  34 apps total
 ```
 
 Commit with:
 ```
-Julius OS v0.8 — ProcessKiller, NetMapper, SysInfo added
+Julius OS v0.9 — Firewall, LogViewer, USBTools added
+```
+
+---
+
+## 🎯 Julius OS Version History
+```
+v0.1  Core launcher boot screen statusbar
+v0.2  Scanner FileManager SysMon
+v0.3  SSH Notes NetTools
+v0.4  PacketAnalyzer WakeOnLAN SpeedTest
+v0.5  Calculator Todo Passwords
+v0.6  Weather Hasher Encoder
+v0.7  NetMonitor TextEditor Timer
+v0.8  ProcessKiller NetMapper SysInfo
+v0.9  Firewall LogViewer USBTools
+```
+
+---
+
+## 🏁 Next — v1.0 Final Release
+```
+1. App store / package installer
+2. OTA update system
+3. Lock screen with PIN
+4. Notification system
+5. Final polish and optimization
