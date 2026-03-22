@@ -31,6 +31,9 @@ from apps.passwords.passwords             import PasswordManager
 from apps.weather.weather                 import Weather
 from apps.hasher.hasher                   import Hasher
 from apps.encoder.encoder                 import Encoder
+from apps.netmonitor.netmonitor           import NetMonitor
+from apps.texteditor.texteditor           import TextEditor
+from apps.timer.timer                     import Timer
 
 WIDTH, HEIGHT = 240, 240
 FPS           = 30
@@ -65,6 +68,9 @@ APPS = [
     {"name": "Weather",   "color": (100, 180, 255)},
     {"name": "Hasher",    "color": (255, 140, 200)},
     {"name": "Encoder",   "color": (140, 255, 140)},
+    {"name": "NetMon",    "color": (0,   200, 255)},
+    {"name": "Editor",    "color": (200, 200, 100)},
+    {"name": "Timer",     "color": (255, 160,  80)},
     {"name": "Settings",  "color": (150, 150, 150)},
 ]
 
@@ -103,6 +109,9 @@ app_instances = {
     "Weather"   : Weather(screen, font_big),
     "Hasher"    : Hasher(screen, font_big),
     "Encoder"   : Encoder(screen, font_big),
+    "NetMon"    : NetMonitor(screen, font_big),
+    "Editor"    : TextEditor(screen, font_big),
+    "Timer"     : Timer(screen, font_big),
     "Settings"  : Settings(screen, font_big),
 }
 
@@ -190,14 +199,14 @@ while True:
 
 ---
 
-## ✅ Julius OS v0.6 Complete
+## ✅ Julius OS v0.7 Complete
 ```
-Weather    ✅  live weather any city worldwide
-Hasher     ✅  MD5 SHA1 SHA256 SHA512
-Encoder    ✅  Base64 URL Hex encode decode
-Launcher   ✅  25 apps total
+NetMonitor   ✅  live RX TX graph connections
+TextEditor   ✅  full editor save load cursor
+Timer        ✅  stopwatch laps countdown timer
+Launcher     ✅  28 apps total
 ```
 
 Commit with:
 ```
-Julius OS v0.6 — Weather, Hasher, Encoder added
+Julius OS v0.7 — NetMonitor, TextEditor, Timer added
