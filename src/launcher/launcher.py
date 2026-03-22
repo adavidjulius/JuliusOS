@@ -1,28 +1,30 @@
 import pygame
 import sys
 import os
-import datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from launcher.boot                  import boot_screen
-from launcher.statusbar             import StatusBar
-from apps.terminal.terminal         import Terminal
-from apps.wifi.wifi                 import WiFiScanner
-from apps.ir.ir                     import IRRemote
-from apps.bluetooth.bluetooth       import BluetoothScanner
-from apps.gpio.gpio                 import GPIOControl
-from apps.settings.settings         import Settings
-from apps.connect.connect           import DeviceConnect
-from apps.filetransfer.filetransfer import FileTransfer
-from apps.clipboard.clipboard       import Clipboard
-from apps.hotspot.hotspot           import Hotspot
-from apps.scanner.scanner           import PortScanner
-from apps.filemanager.filemanager   import FileManager
-from apps.sysmon.sysmon             import SysMon
-from apps.ssh.ssh                   import SSHClient
-from apps.notes.notes               import Notes
-from apps.nettools.nettools         import NetTools
+from launcher.boot                        import boot_screen
+from launcher.statusbar                   import StatusBar
+from apps.terminal.terminal               import Terminal
+from apps.wifi.wifi                       import WiFiScanner
+from apps.ir.ir                           import IRRemote
+from apps.bluetooth.bluetooth             import BluetoothScanner
+from apps.gpio.gpio                       import GPIOControl
+from apps.settings.settings               import Settings
+from apps.connect.connect                 import DeviceConnect
+from apps.filetransfer.filetransfer       import FileTransfer
+from apps.clipboard.clipboard             import Clipboard
+from apps.hotspot.hotspot                 import Hotspot
+from apps.scanner.scanner                 import PortScanner
+from apps.filemanager.filemanager         import FileManager
+from apps.sysmon.sysmon                   import SysMon
+from apps.ssh.ssh                         import SSHClient
+from apps.notes.notes                     import Notes
+from apps.nettools.nettools               import NetTools
+from apps.packetanalyzer.packetanalyzer   import PacketAnalyzer
+from apps.wakeonlan.wakeonlan             import WakeOnLAN
+from apps.speedtest.speedtest             import SpeedTest
 
 WIDTH, HEIGHT = 240, 240
 FPS           = 30
@@ -31,7 +33,6 @@ BG      = (10, 10, 20)
 CARD    = (20, 30, 50)
 ACCENT  = (0, 200, 255)
 TEXT    = (255, 255, 255)
-SUBTEXT = (100, 150, 200)
 
 APPS = [
     {"name": "Terminal",  "color": (0,   180, 120)},
@@ -49,6 +50,9 @@ APPS = [
     {"name": "SSH",       "color": (0,   255, 200)},
     {"name": "Notes",     "color": (255, 255, 100)},
     {"name": "NetTools",  "color": (100, 180, 255)},
+    {"name": "Packets",   "color": (255, 100, 200)},
+    {"name": "WakeOnLAN", "color": (100, 255, 180)},
+    {"name": "SpeedTest", "color": (255, 180, 50) },
     {"name": "Settings",  "color": (150, 150, 150)},
 ]
 
@@ -60,7 +64,6 @@ font_big   = pygame.font.SysFont("monospace", 11, bold=True)
 font_small = pygame.font.SysFont("monospace", 9)
 
 boot_screen(screen)
-
 statusbar = StatusBar(screen, font_small)
 
 app_instances = {
@@ -79,6 +82,9 @@ app_instances = {
     "SSH"       : SSHClient(screen, font_big),
     "Notes"     : Notes(screen, font_big),
     "NetTools"  : NetTools(screen, font_big),
+    "Packets"   : PacketAnalyzer(screen, font_big),
+    "WakeOnLAN" : WakeOnLAN(screen, font_big),
+    "SpeedTest" : SpeedTest(screen, font_big),
     "Settings"  : Settings(screen, font_big),
 }
 
@@ -96,7 +102,6 @@ def get_card_dims():
 def draw_launcher():
     screen.fill(BG)
     statusbar.draw()
-
     card_w, card_h = get_card_dims()
     total_rows     = (len(APPS) + 1) // COLS
     max_scroll     = max(0, total_rows * (card_h + PAD) - (HEIGHT - 28))
@@ -106,10 +111,8 @@ def draw_launcher():
         row = i // COLS
         x   = PAD + col * (card_w + PAD)
         y   = 28 + PAD + row * (card_h + PAD) - scroll_offset
-
         if y + card_h < 28 or y > HEIGHT:
             continue
-
         pygame.draw.rect(screen, CARD,        (x, y, card_w, card_h), border_radius=8)
         pygame.draw.rect(screen, app["color"], (x, y, card_w, card_h), width=1, border_radius=8)
         label = font_big.render(app["name"], True, TEXT)
@@ -169,14 +172,14 @@ while True:
 
 ---
 
-## ✅ Julius OS v0.3 Complete
+## ✅ Julius OS v0.4 Complete
 ```
-SSH Client     ✅  connect to devices via SSH
-Notes          ✅  create read edit delete notes
-Net Tools      ✅  ping traceroute DNS lookup
-Launcher       ✅  16 apps total smooth scroll
+Packet Analyzer  ✅  capture analyze network packets
+Wake on LAN      ✅  wake devices remotely
+Speed Test       ✅  ping and download speed
+Launcher         ✅  19 apps total
 ```
 
 Commit with:
 ```
-🚀 Julius OS v0.3 — SSH, Notes, NetTools added
+🚀 Julius OS v0.4 — PacketAnalyzer, WakeOnLAN, SpeedTest added
