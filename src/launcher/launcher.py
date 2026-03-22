@@ -25,6 +25,9 @@ from apps.nettools.nettools               import NetTools
 from apps.packetanalyzer.packetanalyzer   import PacketAnalyzer
 from apps.wakeonlan.wakeonlan             import WakeOnLAN
 from apps.speedtest.speedtest             import SpeedTest
+from apps.calculator.calculator           import Calculator
+from apps.todo.todo                       import Todo
+from apps.passwords.passwords             import PasswordManager
 
 WIDTH, HEIGHT = 240, 240
 FPS           = 30
@@ -52,7 +55,10 @@ APPS = [
     {"name": "NetTools",  "color": (100, 180, 255)},
     {"name": "Packets",   "color": (255, 100, 200)},
     {"name": "WakeOnLAN", "color": (100, 255, 180)},
-    {"name": "SpeedTest", "color": (255, 180, 50) },
+    {"name": "SpeedTest", "color": (255, 180,  50)},
+    {"name": "Calc",      "color": (0,   220, 255)},
+    {"name": "Todo",      "color": (100, 255, 100)},
+    {"name": "Passwords", "color": (255, 100, 100)},
     {"name": "Settings",  "color": (150, 150, 150)},
 ]
 
@@ -85,6 +91,9 @@ app_instances = {
     "Packets"   : PacketAnalyzer(screen, font_big),
     "WakeOnLAN" : WakeOnLAN(screen, font_big),
     "SpeedTest" : SpeedTest(screen, font_big),
+    "Calc"      : Calculator(screen, font_big),
+    "Todo"      : Todo(screen, font_big),
+    "Passwords" : PasswordManager(screen, font_big),
     "Settings"  : Settings(screen, font_big),
 }
 
@@ -172,14 +181,14 @@ while True:
 
 ---
 
-## ✅ Julius OS v0.4 Complete
+## ✅ Julius OS v0.5 Complete
 ```
-Packet Analyzer  ✅  capture analyze network packets
-Wake on LAN      ✅  wake devices remotely
-Speed Test       ✅  ping and download speed
-Launcher         ✅  19 apps total
+Calculator    ✅  full calc with keyboard support
+Todo          ✅  tasks done pending filter
+Passwords     ✅  store view hide passwords
+Launcher      ✅  22 apps total
 ```
 
 Commit with:
 ```
-🚀 Julius OS v0.4 — PacketAnalyzer, WakeOnLAN, SpeedTest added
+Julius OS v0.5 — Calculator, Todo, Passwords added
