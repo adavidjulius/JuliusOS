@@ -12,7 +12,6 @@ BUTTONS = [
     ["7", "8",   "9", "*"],
     ["4", "5",   "6", "-"],
     ["1", "2",   "3", "+"],
-    ["0", ".",   "⌫", "="],
 ]
 
 class Calculator:
@@ -30,7 +29,6 @@ class Calculator:
             self.prev    = ""
             self.op      = ""
             self.reset   = False
-        elif btn == "⌫":
             self.display = self.display[:-1] or "0"
         elif btn == "+/-":
             if self.display != "0":
@@ -112,7 +110,6 @@ class Calculator:
                     color = ACCENT
                 elif btn in ["C", "+/-", "%"]:
                     color = (80, 80, 120)
-                elif btn == "⌫":
                     color = RED
                 else:
                     color = (20, 30, 50)
@@ -151,7 +148,6 @@ class Calculator:
                 pygame.K_ASTERISK : "*",
                 pygame.K_SLASH    : "/",
                 pygame.K_RETURN   : "=",
-                pygame.K_BACKSPACE: "⌫",
                 pygame.K_PERIOD   : ".",
             }
             if event.key in key_map:

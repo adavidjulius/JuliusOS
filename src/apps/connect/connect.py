@@ -71,7 +71,6 @@ class DeviceConnect:
             self.screen.blit(ip,   (140, y))
             y += 18
 
-        hint = self.font.render("S=scan ↑↓=select ENTER=connect", True, DIM)
         self.screen.blit(hint, (8, 228))
         pygame.display.flip()
 

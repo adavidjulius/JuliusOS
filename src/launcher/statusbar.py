@@ -69,10 +69,3 @@ class StatusBar:
 
         pct = self.font.render(f"{self.battery}%", True, self.get_battery_color())
         self.screen.blit(pct, (220, 8))
-```
-
----
-
-Commit both with:
-```
-🔗 Update launcher with all 10 apps + scroll + statusbar IP

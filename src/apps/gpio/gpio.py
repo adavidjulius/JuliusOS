@@ -25,7 +25,6 @@ class GPIOControl:
         self.pins[index]["state"] = not self.pins[index]["state"]
         state = self.pins[index]["state"]
         pin   = self.pins[index]["pin"]
-        print(f"PIN {pin} → {'HIGH' if state else 'LOW'}")
 
     def draw(self):
         self.screen.fill(BG)

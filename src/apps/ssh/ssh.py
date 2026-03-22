@@ -50,7 +50,6 @@ class SSHClient:
                     self.host   = self.input
                     self.input  = ""
                     self.stage  = "user"
-                    self.status = f"Host: {self.host} — Enter username"
                     self.log.append(f"Host: {self.host}")
                 elif self.stage == "user":
                     self.user   = self.input

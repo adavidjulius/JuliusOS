@@ -100,7 +100,6 @@ class Notes:
             self.screen.blit(surf, (8, y))
             y += 16
 
-        hint = self.font.render("ESC=back  E=edit  ↑↓=scroll", True, DIM)
         self.screen.blit(hint, (8, 228))
         pygame.display.flip()
 

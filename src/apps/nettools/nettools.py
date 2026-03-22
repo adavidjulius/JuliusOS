@@ -115,7 +115,8 @@ class NetTools:
             self.screen.blit(label, (8, y))
             y += 22
 
-        hint = self.font.render("↑↓=select  ENTER=run", True, DIM)
+        self.screen.blit(hint, (8, 228))
+        hint = self.font.render("UP DOWN=select  ENTER=run", True, DIM)
         self.screen.blit(hint, (8, 228))
         pygame.display.flip()
 
@@ -130,6 +131,8 @@ class NetTools:
         inp = self.font.render(f"> {self.input}_", True, TEXT)
         self.screen.blit(inp, (8, 50))
 
+        hint = self.font.render("ENTER=run  ESC=back", True, DIM)
+        self.screen.blit(hint, (8, 228))
         hint = self.font.render("ENTER=run  ESC=back", True, DIM)
         self.screen.blit(hint, (8, 228))
         pygame.display.flip()

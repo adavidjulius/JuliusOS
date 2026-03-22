@@ -42,7 +42,6 @@ class PortScanner:
                     s.close()
                 except:
                     pass
-            self.status = f"Done — {len(self.results)} open ports"
         t = threading.Thread(target=run)
         t.daemon = True
         t.start()

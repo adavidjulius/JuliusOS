@@ -48,7 +48,6 @@ class Settings:
             label   = self.font.render(display, True, color)
             self.screen.blit(label, (8, y))
             y += 18
-        hint = self.font.render("↑↓ navigate  ENTER toggle", True, ACCENT)
         self.screen.blit(hint, (8, 225))
         pygame.display.flip()
 
@@ -63,43 +62,3 @@ class Settings:
                 if isinstance(val, bool):
                     self.config[key] = not val
                     self.save()
-```
-
----
-
-### `buildroot/configs/julius_defconfig`
-```
-BR2_arm=y
-BR2_cortex_a55=y
-BR2_ARM_FPU_NEON_FP_ARMV8=y
-BR2_TOOLCHAIN_BUILDROOT_GLIBC=y
-BR2_TOOLCHAIN_BUILDROOT_CXX=y
-BR2_TARGET_GENERIC_HOSTNAME="julius"
-BR2_TARGET_GENERIC_ISSUE="Julius OS v0.1"
-BR2_INIT_SYSTEMD=y
-BR2_TARGET_LOCALTIME="Asia/Kolkata"
-BR2_TARGET_GENERIC_ROOT_PASSWD="julius"
-BR2_LINUX_KERNEL=y
-BR2_LINUX_KERNEL_LATEST_VERSION=y
-BR2_LINUX_KERNEL_USE_ARCH_DEFAULT_CONFIG=y
-BR2_TARGET_ROOTFS_EXT2=y
-BR2_TARGET_ROOTFS_EXT2_4=y
-BR2_TARGET_ROOTFS_EXT2_SIZE="512M"
-BR2_TARGET_UBOOT=y
-BR2_TARGET_UBOOT_BOARD_DEFCONFIG="julius"
-BR2_PACKAGE_XORG7=y
-BR2_PACKAGE_XDRIVER_XF86_VIDEO_FBDEV=y
-BR2_PACKAGE_PYGAME=y
-BR2_PACKAGE_PYTHON3=y
-BR2_PACKAGE_BUSYBOX=y
-BR2_PACKAGE_BASH=y
-BR2_PACKAGE_NANO=y
-BR2_PACKAGE_HTOP=y
-BR2_PACKAGE_GIT=y
-BR2_PACKAGE_NMAP=y
-BR2_PACKAGE_WIRELESS_TOOLS=y
-BR2_PACKAGE_WPA_SUPPLICANT=y
-BR2_PACKAGE_BLUEZ5_UTILS=y
-BR2_PACKAGE_NETWORK_MANAGER=y
-BR2_ROOTFS_OVERLAY="board/julius/rootfs-overlay"
-BR2_ROOTFS_POST_BUILD_SCRIPT="board/julius/post-build.sh"
