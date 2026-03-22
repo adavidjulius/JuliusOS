@@ -1,0 +1,71 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          julius
+# Required-Start:    $network $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Julius OS Services
+### END INIT INFO
+
+JULIUS_HOME="/usr/julius"
+JULIUS_LOG="/var/log/julius.log"
+JULIUS_CORE="/usr/bin/julius_core"
+JULIUS_POWER="/usr/bin/julius_power"
+JULIUS_OTA="/usr/bin/julius_ota_client"
+JULIUS_UI="/usr/julius/src/julius_ui.py"
+
+export DISPLAY=:0
+export SDL_VIDEODRIVER=fbcon
+export SDL_FBDEV=/dev/fb0
+
+start() {
+    echo "Starting Julius OS..."
+
+    # Start core service
+    start-stop-daemon --start --background \
+        --make-pidfile --pidfile /var/run/julius_core.pid \
+        --exec $JULIUS_CORE
+
+    # Start power manager
+    start-stop-daemon --start --background \
+        --make-pidfile --pidfile /var/run/julius_power.pid \
+        --exec $JULIUS_POWER
+
+    # Start OTA client
+    start-stop-daemon --start --background \
+        --make-pidfile --pidfile /var/run/julius_ota.pid \
+        --exec $JULIUS_OTA
+
+    # Wait for services
+    sleep 2
+
+    # Start UI
+    start-stop-daemon --start --background \
+        --make-pidfile --pidfile /var/run/julius_ui.pid \
+        --exec /usr/bin/python3 -- $JULIUS_UI \
+        >> $JULIUS_LOG 2>&1
+
+    echo "Julius OS started"
+}
+
+stop() {
+    echo "Stopping Julius OS..."
+    start-stop-daemon --stop --pidfile /var/run/julius_ui.pid
+    start-stop-daemon --stop --pidfile /var/run/julius_ota.pid
+    start-stop-daemon --stop --pidfile /var/run/julius_power.pid
+    start-stop-daemon --stop --pidfile /var/run/julius_core.pid
+    echo "Julius OS stopped"
+}
+
+case "$1" in
+    start)   start   ;;
+    stop)    stop    ;;
+    restart) stop; sleep 1; start ;;
+    status)
+        pgrep -f julius_core > /dev/null && \
+            echo "Julius OS running" || echo "Julius OS stopped"
+        ;;
+    *) echo "Usage: $0 {start|stop|restart|status}" ;;
+esac
+
+exit 0
