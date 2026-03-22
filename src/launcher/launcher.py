@@ -28,6 +28,9 @@ from apps.speedtest.speedtest             import SpeedTest
 from apps.calculator.calculator           import Calculator
 from apps.todo.todo                       import Todo
 from apps.passwords.passwords             import PasswordManager
+from apps.weather.weather                 import Weather
+from apps.hasher.hasher                   import Hasher
+from apps.encoder.encoder                 import Encoder
 
 WIDTH, HEIGHT = 240, 240
 FPS           = 30
@@ -59,6 +62,9 @@ APPS = [
     {"name": "Calc",      "color": (0,   220, 255)},
     {"name": "Todo",      "color": (100, 255, 100)},
     {"name": "Passwords", "color": (255, 100, 100)},
+    {"name": "Weather",   "color": (100, 180, 255)},
+    {"name": "Hasher",    "color": (255, 140, 200)},
+    {"name": "Encoder",   "color": (140, 255, 140)},
     {"name": "Settings",  "color": (150, 150, 150)},
 ]
 
@@ -94,6 +100,9 @@ app_instances = {
     "Calc"      : Calculator(screen, font_big),
     "Todo"      : Todo(screen, font_big),
     "Passwords" : PasswordManager(screen, font_big),
+    "Weather"   : Weather(screen, font_big),
+    "Hasher"    : Hasher(screen, font_big),
+    "Encoder"   : Encoder(screen, font_big),
     "Settings"  : Settings(screen, font_big),
 }
 
@@ -181,14 +190,14 @@ while True:
 
 ---
 
-## ✅ Julius OS v0.5 Complete
+## ✅ Julius OS v0.6 Complete
 ```
-Calculator    ✅  full calc with keyboard support
-Todo          ✅  tasks done pending filter
-Passwords     ✅  store view hide passwords
-Launcher      ✅  22 apps total
+Weather    ✅  live weather any city worldwide
+Hasher     ✅  MD5 SHA1 SHA256 SHA512
+Encoder    ✅  Base64 URL Hex encode decode
+Launcher   ✅  25 apps total
 ```
 
 Commit with:
 ```
-Julius OS v0.5 — Calculator, Todo, Passwords added
+Julius OS v0.6 — Weather, Hasher, Encoder added
