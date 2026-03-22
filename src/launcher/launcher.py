@@ -34,6 +34,9 @@ from apps.encoder.encoder                 import Encoder
 from apps.netmonitor.netmonitor           import NetMonitor
 from apps.texteditor.texteditor           import TextEditor
 from apps.timer.timer                     import Timer
+from apps.processkiller.processkiller     import ProcessKiller
+from apps.netmapper.netmapper             import NetMapper
+from apps.sysinfo.sysinfo                 import SysInfo
 
 WIDTH, HEIGHT = 240, 240
 FPS           = 30
@@ -71,6 +74,9 @@ APPS = [
     {"name": "NetMon",    "color": (0,   200, 255)},
     {"name": "Editor",    "color": (200, 200, 100)},
     {"name": "Timer",     "color": (255, 160,  80)},
+    {"name": "ProcKill",  "color": (255, 60,   60)},
+    {"name": "NetMapper", "color": (60,  200, 255)},
+    {"name": "SysInfo",   "color": (180, 180, 255)},
     {"name": "Settings",  "color": (150, 150, 150)},
 ]
 
@@ -112,6 +118,9 @@ app_instances = {
     "NetMon"    : NetMonitor(screen, font_big),
     "Editor"    : TextEditor(screen, font_big),
     "Timer"     : Timer(screen, font_big),
+    "ProcKill"  : ProcessKiller(screen, font_big),
+    "NetMapper" : NetMapper(screen, font_big),
+    "SysInfo"   : SysInfo(screen, font_big),
     "Settings"  : Settings(screen, font_big),
 }
 
@@ -199,14 +208,14 @@ while True:
 
 ---
 
-## ✅ Julius OS v0.7 Complete
+## ✅ Julius OS v0.8 Complete
 ```
-NetMonitor   ✅  live RX TX graph connections
-TextEditor   ✅  full editor save load cursor
-Timer        ✅  stopwatch laps countdown timer
-Launcher     ✅  28 apps total
+ProcessKiller  ✅  view kill filter processes
+NetMapper      ✅  full network host discovery
+SysInfo        ✅  complete system information
+Launcher       ✅  31 apps total
 ```
 
 Commit with:
 ```
-Julius OS v0.7 — NetMonitor, TextEditor, Timer added
+Julius OS v0.8 — ProcessKiller, NetMapper, SysInfo added
