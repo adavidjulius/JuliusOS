@@ -20,6 +20,9 @@ from apps.hotspot.hotspot           import Hotspot
 from apps.scanner.scanner           import PortScanner
 from apps.filemanager.filemanager   import FileManager
 from apps.sysmon.sysmon             import SysMon
+from apps.ssh.ssh                   import SSHClient
+from apps.notes.notes               import Notes
+from apps.nettools.nettools         import NetTools
 
 WIDTH, HEIGHT = 240, 240
 FPS           = 30
@@ -43,6 +46,9 @@ APPS = [
     {"name": "Scanner",   "color": (0,   255, 128)},
     {"name": "Files",     "color": (255, 220,  80)},
     {"name": "SysMon",    "color": (80,  200, 255)},
+    {"name": "SSH",       "color": (0,   255, 200)},
+    {"name": "Notes",     "color": (255, 255, 100)},
+    {"name": "NetTools",  "color": (100, 180, 255)},
     {"name": "Settings",  "color": (150, 150, 150)},
 ]
 
@@ -70,6 +76,9 @@ app_instances = {
     "Scanner"   : PortScanner(screen, font_big),
     "Files"     : FileManager(screen, font_big),
     "SysMon"    : SysMon(screen, font_big),
+    "SSH"       : SSHClient(screen, font_big),
+    "Notes"     : Notes(screen, font_big),
+    "NetTools"  : NetTools(screen, font_big),
     "Settings"  : Settings(screen, font_big),
 }
 
@@ -101,9 +110,8 @@ def draw_launcher():
         if y + card_h < 28 or y > HEIGHT:
             continue
 
-        pygame.draw.rect(screen, CARD,         (x, y, card_w, card_h), border_radius=8)
-        pygame.draw.rect(screen, app["color"],  (x, y, card_w, card_h), width=1, border_radius=8)
-
+        pygame.draw.rect(screen, CARD,        (x, y, card_w, card_h), border_radius=8)
+        pygame.draw.rect(screen, app["color"], (x, y, card_w, card_h), width=1, border_radius=8)
         label = font_big.render(app["name"], True, TEXT)
         screen.blit(label, (x + 8, y + card_h // 2 - 6))
 
@@ -161,14 +169,14 @@ while True:
 
 ---
 
-## ✅ Julius OS v0.2 Complete
+## ✅ Julius OS v0.3 Complete
 ```
-Port Scanner      ✅  scan ports on your own network
-File Manager      ✅  browse copy paste delete files
-System Monitor    ✅  CPU RAM disk process monitor
-Launcher updated  ✅  13 apps with smooth scroll
+SSH Client     ✅  connect to devices via SSH
+Notes          ✅  create read edit delete notes
+Net Tools      ✅  ping traceroute DNS lookup
+Launcher       ✅  16 apps total smooth scroll
 ```
 
-Commit all four files:
+Commit with:
 ```
-🚀 Julius OS v0.2 — Scanner, FileManager, SysMon added
+🚀 Julius OS v0.3 — SSH, Notes, NetTools added
