@@ -17,6 +17,9 @@ from apps.connect.connect           import DeviceConnect
 from apps.filetransfer.filetransfer import FileTransfer
 from apps.clipboard.clipboard       import Clipboard
 from apps.hotspot.hotspot           import Hotspot
+from apps.scanner.scanner           import PortScanner
+from apps.filemanager.filemanager   import FileManager
+from apps.sysmon.sysmon             import SysMon
 
 WIDTH, HEIGHT = 240, 240
 FPS           = 30
@@ -37,6 +40,9 @@ APPS = [
     {"name": "Transfer",  "color": (180, 0,   255)},
     {"name": "Clipboard", "color": (255, 140,   0)},
     {"name": "Hotspot",   "color": (255, 60,  120)},
+    {"name": "Scanner",   "color": (0,   255, 128)},
+    {"name": "Files",     "color": (255, 220,  80)},
+    {"name": "SysMon",    "color": (80,  200, 255)},
     {"name": "Settings",  "color": (150, 150, 150)},
 ]
 
@@ -61,10 +67,13 @@ app_instances = {
     "Transfer"  : FileTransfer(screen, font_big),
     "Clipboard" : Clipboard(screen, font_big),
     "Hotspot"   : Hotspot(screen, font_big),
+    "Scanner"   : PortScanner(screen, font_big),
+    "Files"     : FileManager(screen, font_big),
+    "SysMon"    : SysMon(screen, font_big),
     "Settings"  : Settings(screen, font_big),
 }
 
-current_app  = None
+current_app   = None
 scroll_offset = 0
 COLS          = 2
 PAD           = 8
@@ -80,28 +89,27 @@ def draw_launcher():
     statusbar.draw()
 
     card_w, card_h = get_card_dims()
+    total_rows     = (len(APPS) + 1) // COLS
+    max_scroll     = max(0, total_rows * (card_h + PAD) - (HEIGHT - 28))
 
     for i, app in enumerate(APPS):
-        col  = i % COLS
-        row  = i // COLS
-        x    = PAD + col * (card_w + PAD)
-        y    = 28 + PAD + row * (card_h + PAD) - scroll_offset
+        col = i % COLS
+        row = i // COLS
+        x   = PAD + col * (card_w + PAD)
+        y   = 28 + PAD + row * (card_h + PAD) - scroll_offset
 
         if y + card_h < 28 or y > HEIGHT:
             continue
 
-        pygame.draw.rect(screen, CARD,        (x, y, card_w, card_h), border_radius=8)
-        pygame.draw.rect(screen, app["color"], (x, y, card_w, card_h), width=1, border_radius=8)
+        pygame.draw.rect(screen, CARD,         (x, y, card_w, card_h), border_radius=8)
+        pygame.draw.rect(screen, app["color"],  (x, y, card_w, card_h), width=1, border_radius=8)
 
         label = font_big.render(app["name"], True, TEXT)
         screen.blit(label, (x + 8, y + card_h // 2 - 6))
 
-    # Scroll indicator
-    total_rows = (len(APPS) + 1) // COLS
-    max_scroll = max(0, total_rows * (get_card_dims()[1] + PAD) - (HEIGHT - 28))
     if max_scroll > 0:
-        bar_h   = int((HEIGHT - 28) * (HEIGHT - 28) / (total_rows * (get_card_dims()[1] + PAD)))
-        bar_y   = 28 + int(scroll_offset / max_scroll * ((HEIGHT - 28) - bar_h))
+        bar_h = int((HEIGHT - 28) * (HEIGHT - 28) / (total_rows * (card_h + PAD)))
+        bar_y = 28 + int(scroll_offset / max_scroll * ((HEIGHT - 28) - bar_h))
         pygame.draw.rect(screen, ACCENT, (236, bar_y, 3, bar_h), border_radius=2)
 
     pygame.display.flip()
@@ -133,7 +141,7 @@ while True:
                 if event.key == pygame.K_DOWN:
                     scroll_offset = min(scroll_offset + card_h + PAD, max_scroll)
                 if event.key == pygame.K_UP:
-                    scroll_offset = max(scroll_offset - card_h + PAD, 0)
+                    scroll_offset = max(scroll_offset - card_h - PAD, 0)
 
         if event.type == pygame.MOUSEBUTTONDOWN and current_app is None:
             name = get_tapped_app(event.pos)
@@ -149,3 +157,18 @@ while True:
         draw_launcher()
 
     clock.tick(FPS)
+```
+
+---
+
+## ✅ Julius OS v0.2 Complete
+```
+Port Scanner      ✅  scan ports on your own network
+File Manager      ✅  browse copy paste delete files
+System Monitor    ✅  CPU RAM disk process monitor
+Launcher updated  ✅  13 apps with smooth scroll
+```
+
+Commit all four files:
+```
+🚀 Julius OS v0.2 — Scanner, FileManager, SysMon added
