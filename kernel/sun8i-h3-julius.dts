@@ -1,0 +1,281 @@
+/dts-v1/;
+#include "sun8i-h3.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pwm/pwm.h>
+
+/ {
+	model = "Julius OS Handheld v1.0";
+	compatible = "julius,julius-h3", "allwinner,sun8i-h3";
+
+	aliases {
+		serial0 = &uart0;
+		mmc0    = &mmc2;
+		spi0    = &spi0;
+		spi1    = &spi1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+		bootargs = "console=ttyS0,115200 root=/dev/mmcblk2p2 rootfstype=ext4 rw rootwait quiet loglevel=0 fbcon=map:0 fbcon=rotate:0 init=/sbin/julius_init";
+	};
+
+	reg_vcc3v3: vcc3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	reg_vcc1v8: vcc1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc-1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 0 50000 0>;
+		brightness-levels = <0 16 64 128 192 255>;
+		default-brightness-level = <4>;
+		power-supply = <&reg_vcc3v3>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		power-key {
+			label = "Julius Power";
+			linux,code = <KEY_POWER>;
+			gpios = <&pio 0 0 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+
+		vol-up {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			gpios = <&pio 0 1 GPIO_ACTIVE_LOW>;
+		};
+
+		vol-down {
+			label = "Volume Down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			gpios = <&pio 0 2 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	haptic: vibrator {
+		compatible = "gpio-vibrator";
+		enable-gpios = <&pio 6 10 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&reg_vcc3v3>;
+	};
+};
+
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_8bit_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	vqmmc-supply = <&reg_vcc1v8>;
+	bus-width = <8>;
+	non-removable;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	status = "okay";
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>;
+	cs-gpios = <&pio 2 3 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	display@0 {
+		compatible = "sitronix,st7796";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		dc-gpios = <&pio 2 4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pio 2 5 GPIO_ACTIVE_LOW>;
+		backlight = <&backlight>;
+		rotation = <0>;
+		width = <320>;
+		height = <480>;
+		buswidth = <8>;
+		fps = <60>;
+	};
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins>;
+	cs-gpios = <&pio 0 13 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	fingerprint@0 {
+		compatible = "fpc,fpc1020";
+		reg = <0>;
+		spi-max-frequency = <4800000>;
+		irq-gpios = <&pio 0 14 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pio 0 15 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&reg_vcc3v3>;
+		interrupt-parent = <&pio>;
+		interrupts = <0 14 IRQ_TYPE_EDGE_RISING>;
+	};
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	status = "okay";
+	clock-frequency = <400000>;
+
+	charger: bq25895@6b {
+		compatible = "ti,bq25895";
+		reg = <0x6b>;
+		interrupt-parent = <&pio>;
+		interrupts = <6 12 IRQ_TYPE_EDGE_FALLING>;
+		ti,battery-regulation-voltage = <4352000>;
+		ti,charge-current = <1024000>;
+		ti,termination-current = <128000>;
+		ti,precharge-current = <128000>;
+		ti,minimum-sys-voltage = <3000000>;
+		ti,boost-voltage = <5126000>;
+		ti,boost-max-current = <500000>;
+	};
+
+	fuel_gauge: axp209@34 {
+		compatible = "x-powers,axp209";
+		reg = <0x34>;
+		interrupt-parent = <&pio>;
+		interrupts = <6 11 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pa_pins>;
+	status = "okay";
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <4>;
+	non-removable;
+	cap-sd-highspeed;
+	keep-power-in-suspend;
+	status = "okay";
+
+	wifi@1 {
+		reg = <1>;
+		compatible = "realtek,rtl8723ds";
+		interrupt-parent = <&pio>;
+		interrupts = <6 9 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&pio 6 8 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_pins>;
+	status = "okay";
+};
+
+&cpu_thermal {
+	trips {
+		julius_warm: julius-warm {
+			temperature = <70000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+		julius_hot: julius-hot {
+			temperature = <85000>;
+			hysteresis = <2000>;
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&julius_warm>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 2>;
+		};
+		map1 {
+			trip = <&julius_hot>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+```
+
+---
+
+## `uboot/julius_h3_defconfig`
+```
+CONFIG_ARM=y
+CONFIG_ARCH_SUNXI=y
+CONFIG_DEFAULT_DEVICE_TREE="sun8i-h3-julius"
+CONFIG_SPL=y
+CONFIG_MACH_SUN8I_H3=y
+CONFIG_DRAM_CLK=672
+CONFIG_DRAM_ZQ=3881979
+CONFIG_DRAM_ODT_EN=y
+
+CONFIG_MMC=y
+CONFIG_MMC_SUNXI=y
+CONFIG_MMC_SUNXI_SLOT_EXTRA=2
+CONFIG_GENERIC_MMC=y
+
+CONFIG_BOOTDELAY=0
+CONFIG_USE_BOOTCOMMAND=y
+CONFIG_BOOTCOMMAND="run julius_boot"
+
+CONFIG_EXTRA_ENV_SETTINGS="julius_boot=echo 'Julius OS'; mmc dev 2; load mmc 2:1 0x42000000 zImage; load mmc 2:1 0x43000000 sun8i-h3-julius.dtb; load mmc 2:1 0x43100000 julius_initramfs_h3.cpio.gz; bootz 0x42000000 0x43100000 0x43000000\0"
+
+CONFIG_VIDEO_SUNXI=y
+CONFIG_VIDEO_LCD_MODE="x:320,y:480,depth:16,pclk_khz:27000,le:10,ri:20,up:5,lo:10,hs:20,vs:5,sync:3,vmode:0"
+CONFIG_VIDEO_LCD_DCLK_PHASE=1
+CONFIG_VIDEO_LCD_POWER="PC7"
+CONFIG_VIDEO_LCD_BL_EN="PC6"
+CONFIG_VIDEO_LCD_BL_PWM="PWM0"
+
+CONFIG_SPLASH_SCREEN=y
+CONFIG_SPLASH_SOURCE=y
+CONFIG_SPLASH_SCREEN_ALIGN=y
+CONFIG_SPLASH_SCREEN_X=0
+CONFIG_SPLASH_SCREEN_Y=190
+
+CONFIG_CONS_INDEX=1
+CONFIG_BAUDRATE=115200
+
+CONFIG_CMD_MMC=y
+CONFIG_CMD_FAT=y
+CONFIG_CMD_EXT4=y
+CONFIG_CMD_BOOTZ=y
+CONFIG_CMD_ECHO=y
+CONFIG_CMD_LOAD=y
+CONFIG_CMD_ENV=y
+CONFIG_CMD_SAVEENV=y
+CONFIG_ENV_IS_IN_MMC=y
+CONFIG_ENV_OFFSET=0x88000
+CONFIG_ENV_SIZE=0x20000
+
+CONFIG_CMD_NET=n
+CONFIG_CMD_NFS=n
+CONFIG_CMD_PING=n
+CONFIG_CMD_PCI=n
+CONFIG_CMD_USB=n
+CONFIG_CMD_IDE=n
+CONFIG_CMD_FPGA=n
+CONFIG_CMD_SETEXPR=n
