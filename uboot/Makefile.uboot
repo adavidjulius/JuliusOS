@@ -1,0 +1,37 @@
+# Julius OS - U-Boot build for Allwinner H3
+
+UBOOT_VERSION  := 2024.01
+CROSS_COMPILE  := arm-linux-gnueabihf-
+ARCH           := arm
+JOBS           := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+OUT_DIR        := $(HOME)/Desktop/JuliusOS
+SPL            := $(OUT_DIR)/u-boot-sunxi-with-spl.bin
+
+export ARCH CROSS_COMPILE
+
+.PHONY: all download defconfig build install clean
+
+all: build
+
+download:
+	@if [ ! -d "u-boot-$(UBOOT_VERSION)" ]; then \
+		echo "[+] Downloading U-Boot $(UBOOT_VERSION)..."; \
+		curl -L https://ftp.denx.de/pub/u-boot/u-boot-$(UBOOT_VERSION).tar.bz2 \
+			-o /tmp/u-boot-$(UBOOT_VERSION).tar.bz2; \
+		tar -xf /tmp/u-boot-$(UBOOT_VERSION).tar.bz2; \
+		cp julius_h3_defconfig u-boot-$(UBOOT_VERSION)/configs/; \
+		echo "[OK] U-Boot source ready"; \
+	fi
+
+defconfig: download
+	$(MAKE) -C u-boot-$(UBOOT_VERSION) julius_h3_defconfig
+
+build: defconfig
+	@echo "[+] Building U-Boot for Julius H3 ($(JOBS) jobs)..."
+	$(MAKE) -C u-boot-$(UBOOT_VERSION) -j$(JOBS)
+	cp u-boot-$(UBOOT_VERSION)/u-boot-sunxi-with-spl.bin $(SPL)
+	@echo "[OK] SPL+U-Boot -> $(SPL)"
+	@echo "Flash: dd if=$(SPL) of=/dev/mmcblkX bs=1024 seek=8"
+
+clean:
+	$(MAKE) -C u-boot-$(UBOOT_VERSION) clean
