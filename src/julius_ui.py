@@ -57,6 +57,19 @@ from system.app_switcher                 import AppSwitcher
 from system.haptic                       import HapticFeedback
 from system.folders                      import FolderManager, AppFolder
 
+try:
+    from system.julius_bridge import get_bridge
+    from system.julius_status import get_status
+    julius_status  = get_status()
+    julius_bridge  = get_bridge()
+    BACKEND        = True
+    print("[UI] Julius OS backend connected")
+except Exception as e:
+    print(f"[UI] Running without backend: {e}")
+    julius_status  = None
+    julius_bridge  = None
+    BACKEND        = False
+
 W, H  = 320, 480
 FPS   = 60
 
@@ -87,7 +100,7 @@ DEFAULT_SETTINGS = {
     "hotspot"      : False,
     "admin_device" : "",
     "device_name"  : "Julius",
-    "version"      : "Julius OS v1.2",
+    "version"      : "Julius OS v1.3",
 }
 
 def load_settings():
@@ -236,7 +249,7 @@ lock_anim      = LockAnimation(screen, W, H)
 boot_anim      = BootAnimation(screen, W, H)
 app_switcher   = AppSwitcher(screen, W, H, app_instances, APPS)
 haptic         = HapticFeedback()
-folder_mgr     = FolderManager(screen, W, H, draw_icon if 'draw_icon' in dir() else None)
+folder_mgr     = FolderManager(screen, W, H, None)
 
 FOLDERS = [
     AppFolder("Network", [
@@ -286,10 +299,11 @@ def rr(surf, color, rect, radius):
     r = min(radius, w//2, h//2)
     pygame.draw.rect(surf, color, (x+r, y, w-2*r, h))
     pygame.draw.rect(surf, color, (x, y+r, w, h-2*r))
-    for cx2, cy2 in [(x+r,y+r),(x+w-r,y+r),(x+r,y+h-r),(x+w-r,y+h-r)]:
+    for cx2, cy2 in [
+        (x+r,y+r),(x+w-r,y+r),
+        (x+r,y+h-r),(x+w-r,y+h-r)
+    ]:
         pygame.draw.circle(surf, color, (cx2,cy2), r)
-
-folder_mgr.draw_icon = lambda surf,app,x,y,size=60: draw_icon(surf,app,x,y,size)
 
 def draw_icon(surf, app, x, y, size=60):
     ac   = app["ac"]
@@ -307,7 +321,8 @@ def draw_icon(surf, app, x, y, size=60):
     elif name == "WiFi":
         for rad,alpha in [(14,60),(10,130),(6,200)]:
             s2=pygame.Surface((size*2,size*2),pygame.SRCALPHA)
-            pygame.draw.arc(s2,(*ac,alpha),(size-rad,size-rad//2,rad*2,rad),0,math.pi,2)
+            pygame.draw.arc(s2,(*ac,alpha),
+                (size-rad,size-rad//2,rad*2,rad),0,math.pi,2)
             surf.blit(s2,(x-size//2,y-size//2))
         pygame.draw.circle(surf,ac,(cx2,cy2+5),2)
     elif name == "IR":
@@ -325,191 +340,285 @@ def draw_icon(surf, app, x, y, size=60):
         b2=cy2+10
         pygame.draw.lines(surf,ac,False,
             [(mid-6,t2+4),(mid+6,cy2),(mid-6,b2-4),
-             (mid-6,t2+4),(mid,t2),(mid+6,cy2),(mid,b2),(mid-6,b2-4)],2)
+             (mid-6,t2+4),(mid,t2),(mid+6,cy2),
+             (mid,b2),(mid-6,b2-4)],2)
     elif name == "GPIO":
         pygame.draw.rect(surf,ac,(cx2-8,cy2-8,16,16),2)
         for dy2 in [-4,4]:
             pygame.draw.circle(surf,ac,(cx2-13,cy2+dy2),2)
             pygame.draw.circle(surf,ac,(cx2+13,cy2+dy2),2)
-            pygame.draw.line(surf,ac,(cx2-8,cy2+dy2),(cx2-13,cy2+dy2),1)
-            pygame.draw.line(surf,ac,(cx2+8,cy2+dy2),(cx2+13,cy2+dy2),1)
+            pygame.draw.line(surf,ac,
+                (cx2-8,cy2+dy2),(cx2-13,cy2+dy2),1)
+            pygame.draw.line(surf,ac,
+                (cx2+8,cy2+dy2),(cx2+13,cy2+dy2),1)
     elif name == "Connect":
         pygame.draw.circle(surf,ac,(cx2-10,cy2),4,2)
         pygame.draw.circle(surf,ac,(cx2+8,cy2-7),3,2)
         pygame.draw.circle(surf,ac,(cx2+8,cy2+7),3,2)
-        pygame.draw.line(surf,(*ac,150),(cx2-6,cy2),(cx2+5,cy2-5),1)
-        pygame.draw.line(surf,(*ac,150),(cx2-6,cy2),(cx2+5,cy2+5),1)
+        pygame.draw.line(surf,(*ac,150),
+            (cx2-6,cy2),(cx2+5,cy2-5),1)
+        pygame.draw.line(surf,(*ac,150),
+            (cx2-6,cy2),(cx2+5,cy2+5),1)
     elif name == "Transfer":
-        pygame.draw.line(surf,ac,(x+8,cy2-4),(x+size-8,cy2-4),2)
+        pygame.draw.line(surf,ac,
+            (x+8,cy2-4),(x+size-8,cy2-4),2)
         pygame.draw.lines(surf,ac,False,
-            [(x+size-13,cy2-8),(x+size-8,cy2-4),(x+size-13,cy2)],2)
-        pygame.draw.line(surf,(*ac,150),(x+8,cy2+4),(x+size-8,cy2+4),2)
+            [(x+size-13,cy2-8),(x+size-8,cy2-4),
+             (x+size-13,cy2)],2)
+        pygame.draw.line(surf,(*ac,150),
+            (x+8,cy2+4),(x+size-8,cy2+4),2)
         pygame.draw.lines(surf,(*ac,150),False,
             [(x+12,cy2),(x+8,cy2+4),(x+12,cy2+8)],2)
     elif name == "Scanner":
         pygame.draw.circle(surf,ac,(cx2-3,cy2-3),8,2)
-        pygame.draw.line(surf,ac,(cx2+3,cy2+3),(cx2+10,cy2+10),2)
-        pygame.draw.line(surf,(*ac,150),(cx2-7,cy2-3),(cx2+1,cy2-3),1)
-        pygame.draw.line(surf,(*ac,150),(cx2-3,cy2-7),(cx2-3,cy2+1),1)
+        pygame.draw.line(surf,ac,
+            (cx2+3,cy2+3),(cx2+10,cy2+10),2)
+        pygame.draw.line(surf,(*ac,150),
+            (cx2-7,cy2-3),(cx2+1,cy2-3),1)
+        pygame.draw.line(surf,(*ac,150),
+            (cx2-3,cy2-7),(cx2-3,cy2+1),1)
     elif name == "Files":
         pygame.draw.polygon(surf,ac,
-            [(x+8,y+8),(x+size-8,y+8),(x+size-8,y+size-8),(x+8,y+size-8)],2)
+            [(x+8,y+8),(x+size-8,y+8),
+             (x+size-8,y+size-8),(x+8,y+size-8)],2)
         for i2,ly2 in enumerate([cy2-4,cy2+1,cy2+6]):
-            pygame.draw.line(surf,(*ac,200-i2*60),(x+13,ly2),(x+size-13,ly2),2)
+            pygame.draw.line(surf,(*ac,200-i2*60),
+                (x+13,ly2),(x+size-13,ly2),2)
     elif name == "SysMon":
-        pts3=[(x+4,cy2+4),(x+9,cy2-4),(x+14,cy2+2),(cx2,cy2-8),
-              (cx2+7,cy2),(cx2+13,cy2-4),(x+size-4,cy2+2)]
+        pts3=[(x+4,cy2+4),(x+9,cy2-4),(x+14,cy2+2),
+              (cx2,cy2-8),(cx2+7,cy2),(cx2+13,cy2-4),
+              (x+size-4,cy2+2)]
         pygame.draw.lines(surf,ac,False,pts3,2)
     elif name == "SSH":
-        pygame.draw.rect(surf,ac,(x+6,y+10,size-12,size-20),2,border_radius=3)
+        pygame.draw.rect(surf,ac,
+            (x+6,y+10,size-12,size-20),2,border_radius=3)
         t3=font_small.render("SSH",True,ac)
-        surf.blit(t3,(cx2-t3.get_width()//2,cy2-t3.get_height()//2))
+        surf.blit(t3,(cx2-t3.get_width()//2,
+                      cy2-t3.get_height()//2))
     elif name == "Notes":
-        pts4=[(x+8,y+8),(x+size-8,y+8),(x+size-8,y+size-10),
+        pts4=[(x+8,y+8),(x+size-8,y+8),
+              (x+size-8,y+size-10),
               (x+size-14,y+size-8),(x+8,y+size-8)]
         pygame.draw.polygon(surf,ac,pts4,2)
         for i2,ly2 in enumerate([cy2-6,cy2-1,cy2+4,cy2+9]):
-            pygame.draw.line(surf,(*ac,220-i2*55),(x+12,ly2),(x+size-12,ly2),1)
+            pygame.draw.line(surf,(*ac,220-i2*55),
+                (x+12,ly2),(x+size-12,ly2),1)
     elif name == "Passwords":
-        pygame.draw.rect(surf,ac,(cx2-9,cy2-2,18,12),2,border_radius=3)
-        pygame.draw.arc(surf,ac,(cx2-7,cy2-12,14,14),0,math.pi,2)
+        pygame.draw.rect(surf,ac,
+            (cx2-9,cy2-2,18,12),2,border_radius=3)
+        pygame.draw.arc(surf,ac,
+            (cx2-7,cy2-12,14,14),0,math.pi,2)
         pygame.draw.circle(surf,ac,(cx2,cy2+3),3)
     elif name == "Calc":
-        pygame.draw.rect(surf,ac,(x+8,y+8,size-16,size-16),2,border_radius=4)
-        pygame.draw.rect(surf,(*ac,60),(x+10,y+10,size-20,10))
+        pygame.draw.rect(surf,ac,
+            (x+8,y+8,size-16,size-16),2,border_radius=4)
+        pygame.draw.rect(surf,(*ac,60),
+            (x+10,y+10,size-20,10))
         for r3 in range(3):
             for c3 in range(3):
-                pygame.draw.circle(surf,ac,(x+14+c3*8,cy2+2+r3*7),2)
+                pygame.draw.circle(surf,ac,
+                    (x+14+c3*8,cy2+2+r3*7),2)
     elif name == "Todo":
-        for i2,(ly2,op) in enumerate([(cy2-7,255),(cy2,180),(cy2+7,100)]):
+        for i2,(ly2,op) in enumerate(
+            [(cy2-7,255),(cy2,180),(cy2+7,100)]):
             pygame.draw.lines(surf,(*ac,op),False,
                 [(x+10,ly2),(x+15,ly2+5),(x+21,ly2-2)],2)
-            pygame.draw.line(surf,(*ac,op//2),(x+24,ly2),(x+size-10,ly2),2)
+            pygame.draw.line(surf,(*ac,op//2),
+                (x+24,ly2),(x+size-10,ly2),2)
     elif name == "Weather":
         pygame.draw.circle(surf,ac,(cx2-4,cy2-3),7,2)
-        pygame.draw.arc(surf,ac,(cx2-2,cy2-9,16,14),math.pi*0.8,math.pi*2,2)
+        pygame.draw.arc(surf,ac,
+            (cx2-2,cy2-9,16,14),math.pi*0.8,math.pi*2,2)
         for i2,rx2 in enumerate([cx2-8,cx2-2,cx2+4]):
-            pygame.draw.line(surf,(*ac,160-i2*40),(rx2,cy2+7),(rx2-2,cy2+13),2)
+            pygame.draw.line(surf,(*ac,160-i2*40),
+                (rx2,cy2+7),(rx2-2,cy2+13),2)
     elif name == "Hasher":
-        pygame.draw.line(surf,ac,(cx2-6,cy2-10),(cx2-8,cy2+10),2)
-        pygame.draw.line(surf,ac,(cx2+2,cy2-10),(cx2,cy2+10),2)
-        pygame.draw.line(surf,(*ac,180),(cx2-10,cy2-3),(cx2+6,cy2-3),2)
-        pygame.draw.line(surf,(*ac,180),(cx2-11,cy2+4),(cx2+5,cy2+4),2)
+        pygame.draw.line(surf,ac,
+            (cx2-6,cy2-10),(cx2-8,cy2+10),2)
+        pygame.draw.line(surf,ac,
+            (cx2+2,cy2-10),(cx2,cy2+10),2)
+        pygame.draw.line(surf,(*ac,180),
+            (cx2-10,cy2-3),(cx2+6,cy2-3),2)
+        pygame.draw.line(surf,(*ac,180),
+            (cx2-11,cy2+4),(cx2+5,cy2+4),2)
     elif name == "Encoder":
-        pygame.draw.rect(surf,ac,(x+6,y+12,12,14),2,border_radius=2)
-        pygame.draw.rect(surf,ac,(x+size-18,y+12,12,14),2,border_radius=2)
-        pygame.draw.line(surf,ac,(x+18,cy2-2),(x+size-18,cy2-2),2)
-        pygame.draw.line(surf,(*ac,150),(x+18,cy2+3),(x+size-18,cy2+3),1)
+        pygame.draw.rect(surf,ac,
+            (x+6,y+12,12,14),2,border_radius=2)
+        pygame.draw.rect(surf,ac,
+            (x+size-18,y+12,12,14),2,border_radius=2)
+        pygame.draw.line(surf,ac,
+            (x+18,cy2-2),(x+size-18,cy2-2),2)
+        pygame.draw.line(surf,(*ac,150),
+            (x+18,cy2+3),(x+size-18,cy2+3),1)
     elif name == "NetMon":
-        pygame.draw.rect(surf,ac,(x+4,y+8,size-8,size-20),2,border_radius=3)
+        pygame.draw.rect(surf,ac,
+            (x+4,y+8,size-8,size-20),2,border_radius=3)
         pts5=[(x+8,cy2-2),(x+13,cy2-7),(x+18,cy2-1),
-              (cx2,cy2-10),(cx2+7,cy2-3),(cx2+13,cy2-6),(x+size-8,cy2-2)]
+              (cx2,cy2-10),(cx2+7,cy2-3),
+              (cx2+13,cy2-6),(x+size-8,cy2-2)]
         pygame.draw.lines(surf,ac,False,pts5,2)
     elif name == "Editor":
-        pts6=[(cx2+8,cy2-10),(cx2-8,cy2+8),(cx2-10,cy2+10),(cx2-8,cy2+8)]
+        pts6=[(cx2+8,cy2-10),(cx2-8,cy2+8),
+              (cx2-10,cy2+10),(cx2-8,cy2+8)]
         pygame.draw.lines(surf,ac,False,pts6,2)
-        pygame.draw.line(surf,(*ac,100),(cx2-10,cy2+12),(cx2+4,cy2+12),1)
+        pygame.draw.line(surf,(*ac,100),
+            (cx2-10,cy2+12),(cx2+4,cy2+12),1)
     elif name == "Timer":
         pygame.draw.circle(surf,ac,(cx2,cy2+2),10,2)
-        pygame.draw.line(surf,ac,(cx2,cy2+2),(cx2,cy2-4),2)
-        pygame.draw.line(surf,ac,(cx2,cy2+2),(cx2+5,cy2+5),2)
-        pygame.draw.line(surf,(*ac,150),(cx2-5,y+8),(cx2+5,y+8),2)
+        pygame.draw.line(surf,ac,
+            (cx2,cy2+2),(cx2,cy2-4),2)
+        pygame.draw.line(surf,ac,
+            (cx2,cy2+2),(cx2+5,cy2+5),2)
+        pygame.draw.line(surf,(*ac,150),
+            (cx2-5,y+8),(cx2+5,y+8),2)
     elif name == "WakeOnLAN":
-        pygame.draw.rect(surf,ac,(x+6,y+12,size-12,size-24),2,border_radius=3)
+        pygame.draw.rect(surf,ac,
+            (x+6,y+12,size-12,size-24),2,border_radius=3)
         for i2 in range(4):
-            pygame.draw.line(surf,ac,(x+11+i2*7,cy2-3),(x+13+i2*7,cy2+3),2)
+            pygame.draw.line(surf,ac,
+                (x+11+i2*7,cy2-3),(x+13+i2*7,cy2+3),2)
     elif name == "SpeedTest":
-        pygame.draw.arc(surf,ac,(x+6,y+10,size-12,size-12),math.pi,0,3)
-        pygame.draw.line(surf,ac,(cx2,cy2),(cx2+8,cy2-8),2)
+        pygame.draw.arc(surf,ac,
+            (x+6,y+10,size-12,size-12),math.pi,0,3)
+        pygame.draw.line(surf,ac,
+            (cx2,cy2),(cx2+8,cy2-8),2)
         pygame.draw.circle(surf,ac,(cx2,cy2),3)
     elif name == "ProcKill":
-        pygame.draw.rect(surf,ac,(x+6,y+10,size-12,size-20),2,border_radius=3)
-        pygame.draw.line(surf,ac,(cx2-7,cy2-5),(cx2+7,cy2+5),2)
-        pygame.draw.line(surf,ac,(cx2+7,cy2-5),(cx2-7,cy2+5),2)
+        pygame.draw.rect(surf,ac,
+            (x+6,y+10,size-12,size-20),2,border_radius=3)
+        pygame.draw.line(surf,ac,
+            (cx2-7,cy2-5),(cx2+7,cy2+5),2)
+        pygame.draw.line(surf,ac,
+            (cx2+7,cy2-5),(cx2-7,cy2+5),2)
     elif name == "NetMapper":
         for rad2,op in [(12,50),(8,120),(4,200)]:
             pygame.draw.circle(surf,(*ac,op),(cx2,cy2),rad2,1)
         pygame.draw.circle(surf,ac,(cx2,cy2),2)
-        pygame.draw.line(surf,(*ac,60),(x+4,cy2),(x+size-4,cy2),1)
-        pygame.draw.line(surf,(*ac,60),(cx2,y+4),(cx2,y+size-4),1)
+        pygame.draw.line(surf,(*ac,60),
+            (x+4,cy2),(x+size-4,cy2),1)
+        pygame.draw.line(surf,(*ac,60),
+            (cx2,y+4),(cx2,y+size-4),1)
     elif name == "SysInfo":
         pygame.draw.circle(surf,ac,(cx2,cy2),11,2)
-        pygame.draw.line(surf,ac,(cx2,cy2-2),(cx2,cy2+7),3)
+        pygame.draw.line(surf,ac,
+            (cx2,cy2-2),(cx2,cy2+7),3)
         pygame.draw.circle(surf,ac,(cx2,cy2-6),2)
     elif name == "Firewall":
-        pts7=[(cx2,y+6),(x+size-8,cy2-6),(x+size-8,cy2+4),
-              (cx2,y+size-6),(x+8,cy2+4),(x+8,cy2-6),(cx2,y+6)]
+        pts7=[(cx2,y+6),(x+size-8,cy2-6),
+              (x+size-8,cy2+4),(cx2,y+size-6),
+              (x+8,cy2+4),(x+8,cy2-6),(cx2,y+6)]
         pygame.draw.polygon(surf,ac,pts7,2)
-        pygame.draw.line(surf,ac,(cx2,cy2-5),(cx2,cy2+5),2)
+        pygame.draw.line(surf,ac,
+            (cx2,cy2-5),(cx2,cy2+5),2)
     elif name == "Logs":
-        pygame.draw.rect(surf,ac,(x+8,y+8,size-16,size-16),2,border_radius=3)
-        for i2,ly2 in enumerate([cy2-6,cy2-1,cy2+4,cy2+9]):
-            pygame.draw.line(surf,(*ac,210-i2*50),(x+12,ly2),(x+size-12,ly2),2)
+        pygame.draw.rect(surf,ac,
+            (x+8,y+8,size-16,size-16),2,border_radius=3)
+        for i2,ly2 in enumerate(
+            [cy2-6,cy2-1,cy2+4,cy2+9]):
+            pygame.draw.line(surf,(*ac,210-i2*50),
+                (x+12,ly2),(x+size-12,ly2),2)
     elif name == "USB":
-        pygame.draw.line(surf,ac,(cx2,y+8),(cx2,y+size-10),2)
+        pygame.draw.line(surf,ac,
+            (cx2,y+8),(cx2,y+size-10),2)
         pygame.draw.lines(surf,ac,False,
             [(cx2-6,y+13),(cx2,y+8),(cx2+6,y+13)],2)
-        pygame.draw.rect(surf,ac,(cx2-5,cy2-6,10,6),2)
-        pygame.draw.rect(surf,ac,(cx2-5,cy2+2,10,6),2)
-        pygame.draw.circle(surf,ac,(cx2,y+size-10),4,2)
+        pygame.draw.rect(surf,ac,
+            (cx2-5,cy2-6,10,6),2)
+        pygame.draw.rect(surf,ac,
+            (cx2-5,cy2+2,10,6),2)
+        pygame.draw.circle(surf,ac,
+            (cx2,y+size-10),4,2)
     elif name == "Clipboard":
-        pygame.draw.rect(surf,ac,(x+8,y+10,size-16,size-18),2,border_radius=3)
-        pygame.draw.rect(surf,ac,(cx2-6,y+7,12,6),2,border_radius=2)
+        pygame.draw.rect(surf,ac,
+            (x+8,y+10,size-16,size-18),2,border_radius=3)
+        pygame.draw.rect(surf,ac,
+            (cx2-6,y+7,12,6),2,border_radius=2)
         for i2,ly2 in enumerate([cy2-4,cy2+1,cy2+6]):
-            pygame.draw.line(surf,(*ac,200-i2*60),(x+13,ly2),(x+size-13,ly2),1)
+            pygame.draw.line(surf,(*ac,200-i2*60),
+                (x+13,ly2),(x+size-13,ly2),1)
     elif name == "Hotspot":
-        pygame.draw.arc(surf,ac,(x+4,y+8,size-8,size-8),
+        pygame.draw.arc(surf,ac,
+            (x+4,y+8,size-8,size-8),
             math.pi*0.1,math.pi*0.9,2)
         pygame.draw.circle(surf,ac,(cx2,cy2+4),3)
-        pygame.draw.line(surf,(*ac,150),(cx2,cy2+7),(cx2,cy2+13),2)
+        pygame.draw.line(surf,(*ac,150),
+            (cx2,cy2+7),(cx2,cy2+13),2)
     elif name == "NetTools":
-        pygame.draw.rect(surf,ac,(cx2-8,y+8,10,8),2)
-        pygame.draw.rect(surf,ac,(x+8,cy2,10,8),2)
-        pygame.draw.rect(surf,ac,(x+size-18,cy2,10,8),2)
-        pygame.draw.line(surf,ac,(cx2-3,y+16),(cx2-3,cy2),1)
-        pygame.draw.line(surf,ac,(cx2-3,cy2+4),(x+18,cy2+4),1)
-        pygame.draw.line(surf,ac,(cx2-3,cy2+4),(x+size-13,cy2+4),1)
+        pygame.draw.rect(surf,ac,
+            (cx2-8,y+8,10,8),2)
+        pygame.draw.rect(surf,ac,
+            (x+8,cy2,10,8),2)
+        pygame.draw.rect(surf,ac,
+            (x+size-18,cy2,10,8),2)
+        pygame.draw.line(surf,ac,
+            (cx2-3,y+16),(cx2-3,cy2),1)
+        pygame.draw.line(surf,ac,
+            (cx2-3,cy2+4),(x+18,cy2+4),1)
+        pygame.draw.line(surf,ac,
+            (cx2-3,cy2+4),(x+size-13,cy2+4),1)
     elif name == "Packets":
-        pygame.draw.rect(surf,ac,(x+4,y+12,10,8),2)
-        pygame.draw.rect(surf,ac,(x+size-14,y+12,10,8),2)
-        pygame.draw.line(surf,ac,(x+14,cy2),(x+size-14,cy2),2)
+        pygame.draw.rect(surf,ac,
+            (x+4,y+12,10,8),2)
+        pygame.draw.rect(surf,ac,
+            (x+size-14,y+12,10,8),2)
+        pygame.draw.line(surf,ac,
+            (x+14,cy2),(x+size-14,cy2),2)
         pygame.draw.lines(surf,ac,False,
-            [(x+size-16,cy2-3),(x+size-14,cy2),(x+size-16,cy2+3)],2)
+            [(x+size-16,cy2-3),(x+size-14,cy2),
+             (x+size-16,cy2+3)],2)
     elif name == "Drop":
         for rad2 in [12,8,4]:
-            pygame.draw.circle(surf,(*ac,100+rad2*10),(cx2,cy2),rad2,1)
-        pygame.draw.line(surf,ac,(cx2,cy2-6),(cx2,cy2+4),2)
+            pygame.draw.circle(surf,
+                (*ac,100+rad2*10),(cx2,cy2),rad2,1)
+        pygame.draw.line(surf,ac,
+            (cx2,cy2-6),(cx2,cy2+4),2)
         pygame.draw.lines(surf,ac,False,
-            [(cx2-4,cy2+1),(cx2,cy2+5),(cx2+4,cy2+1)],2)
+            [(cx2-4,cy2+1),(cx2,cy2+5),
+             (cx2+4,cy2+1)],2)
     elif name == "Cloud":
-        pygame.draw.arc(surf,ac,(cx2-14,cy2-8,16,16),0,math.pi,2)
-        pygame.draw.arc(surf,ac,(cx2-4,cy2-12,16,16),0,math.pi,2)
-        pygame.draw.rect(surf,ac,(cx2-14,cy2,28,8),2)
-        pygame.draw.line(surf,ac,(cx2,cy2+8),(cx2,cy2+14),2)
+        pygame.draw.arc(surf,ac,
+            (cx2-14,cy2-8,16,16),0,math.pi,2)
+        pygame.draw.arc(surf,ac,
+            (cx2-4,cy2-12,16,16),0,math.pi,2)
+        pygame.draw.rect(surf,ac,
+            (cx2-14,cy2,28,8),2)
+        pygame.draw.line(surf,ac,
+            (cx2,cy2+8),(cx2,cy2+14),2)
         pygame.draw.lines(surf,ac,False,
-            [(cx2-4,cy2+11),(cx2,cy2+15),(cx2+4,cy2+11)],2)
+            [(cx2-4,cy2+11),(cx2,cy2+15),
+             (cx2+4,cy2+11)],2)
     elif name == "AI":
         pygame.draw.circle(surf,ac,(cx2,cy2),10,2)
         t3=font_small.render("AI",True,ac)
-        surf.blit(t3,(cx2-t3.get_width()//2,cy2-t3.get_height()//2))
+        surf.blit(t3,(cx2-t3.get_width()//2,
+                      cy2-t3.get_height()//2))
         for ang in [0,120,240]:
             r3=math.radians(ang)
             pygame.draw.line(surf,(*ac,120),
-                (cx2+int(math.cos(r3)*10),cy2+int(math.sin(r3)*10)),
-                (cx2+int(math.cos(r3)*16),cy2+int(math.sin(r3)*16)),2)
+                (cx2+int(math.cos(r3)*10),
+                 cy2+int(math.sin(r3)*10)),
+                (cx2+int(math.cos(r3)*16),
+                 cy2+int(math.sin(r3)*16)),2)
     elif name == "Radio":
         for rad2,op in [(12,80),(8,150),(4,220)]:
             pygame.draw.arc(surf,(*ac,op),
-                (cx2-rad2,cy2-rad2,rad2*2,rad2),0,math.pi,2)
-        pygame.draw.line(surf,ac,(cx2,cy2),(cx2,cy2+10),2)
-        pygame.draw.line(surf,ac,(cx2-4,cy2+10),(cx2+4,cy2+10),2)
+                (cx2-rad2,cy2-rad2,rad2*2,rad2),
+                0,math.pi,2)
+        pygame.draw.line(surf,ac,
+            (cx2,cy2),(cx2,cy2+10),2)
+        pygame.draw.line(surf,ac,
+            (cx2-4,cy2+10),(cx2+4,cy2+10),2)
     elif name == "Maps":
         for rad2,op in [(12,50),(8,120),(4,200)]:
-            pygame.draw.circle(surf,(*ac,op),(cx2,cy2),rad2,1)
+            pygame.draw.circle(surf,
+                (*ac,op),(cx2,cy2),rad2,1)
         pygame.draw.circle(surf,ac,(cx2,cy2),2)
-        pygame.draw.line(surf,(*ac,80),(x+4,cy2),(x+size-4,cy2),1)
-        pygame.draw.line(surf,(*ac,80),(cx2,y+4),(cx2,y+size-4),1)
-        pygame.draw.circle(surf,ac,(cx2+4,cy2-4),3)
+        pygame.draw.line(surf,(*ac,80),
+            (x+4,cy2),(x+size-4,cy2),1)
+        pygame.draw.line(surf,(*ac,80),
+            (cx2,y+4),(cx2,y+size-4),1)
+        pygame.draw.circle(surf,ac,
+            (cx2+4,cy2-4),3)
     elif name == "Settings":
         pygame.draw.circle(surf,ac,(cx2,cy2),5,2)
         for ang in range(0,360,45):
@@ -521,16 +630,52 @@ def draw_icon(surf, app, x, y, size=60):
             pygame.draw.line(surf,ac,(x1,y1),(x2,y2),2)
     else:
         t3=font_small.render(name[:3],True,ac)
-        surf.blit(t3,(cx2-t3.get_width()//2,cy2-t3.get_height()//2))
+        surf.blit(t3,(cx2-t3.get_width()//2,
+                      cy2-t3.get_height()//2))
 
 folder_mgr.draw_icon = draw_icon
 
 def get_battery_level():
+    if julius_status:
+        julius_status.update()
+        return julius_status.battery_level
     try:
-        with open("/sys/class/power_supply/battery/capacity") as f:
+        with open(
+            "/sys/class/power_supply/battery/capacity"
+        ) as f:
             return int(f.read().strip())
     except:
         return 85
+
+def is_charging():
+    if julius_status:
+        return julius_status.charging
+    try:
+        with open(
+            "/sys/class/power_supply/battery/status"
+        ) as f:
+            return f.read().strip() in ["Charging","Full"]
+    except:
+        return False
+
+def get_wifi_bars():
+    if julius_status:
+        return julius_status.get_wifi_bars()
+    try:
+        state_file = "/var/run/julius_wifi.state"
+        if os.path.exists(state_file):
+            with open(state_file) as f:
+                for line in f:
+                    if line.startswith("connected="):
+                        return 3 if line.strip()=="connected=1" else 0
+    except:
+        pass
+    return 3
+
+def get_health_score():
+    if julius_status:
+        return julius_status.health_score
+    return 100
 
 def draw_status_bar():
     now = datetime.datetime.now()
@@ -539,31 +684,57 @@ def draw_status_bar():
     screen.blit(ts, (16, 12))
 
     battery_level = get_battery_level()
-    bat_col = GREEN if battery_level > 20 else RED
-    bat_pct = font_small.render(f"{battery_level}%", True, bat_col)
-    screen.blit(bat_pct, (W-bat_pct.get_width()-58, 12))
+    charging      = is_charging()
+
+    bat_col = (GREEN if charging else
+               WHITE if battery_level > 20 else RED)
+
+    charge_str = "+" if charging else ""
+    bat_pct    = font_small.render(
+        f"{charge_str}{battery_level}%", True, bat_col)
+    screen.blit(bat_pct,
+        (W-bat_pct.get_width()-58, 12))
 
     bat_x = W-52
-    pygame.draw.rect(screen,WHITE,(bat_x,12,28,13),1,border_radius=3)
-    pygame.draw.rect(screen,WHITE,(bat_x+28,15,3,7),border_radius=1)
+    pygame.draw.rect(screen,WHITE,
+        (bat_x,12,28,13),1,border_radius=3)
+    pygame.draw.rect(screen,WHITE,
+        (bat_x+28,15,3,7),border_radius=1)
     fw = int(22*battery_level/100)
-    pygame.draw.rect(screen,bat_col,(bat_x+2,14,fw,9),border_radius=2)
+    pygame.draw.rect(screen,bat_col,
+        (bat_x+2,14,fw,9),border_radius=2)
+    if charging:
+        bolt=font_small.render("+",True,(0,0,0))
+        screen.blit(bolt,(bat_x+10,14))
 
-    for i in range(3):
-        bx=W-92+i*7
-        bh=5+i*2
-        pygame.draw.rect(screen,(*WHITE,80+i*60),
+    bars = get_wifi_bars()
+    for i in range(4):
+        bh  = 4+i*3
+        bx  = W-92+i*7
+        col = (*WHITE,200) if i<bars else (*WHITE,40)
+        pygame.draw.rect(screen,col,
             (bx,18-bh//2,5,bh),border_radius=1)
 
     unread = notif_center.unread_count()
     if unread > 0:
         nb = font_small.render(str(unread),True,WHITE)
         rr(screen,RED,(W//2-8,10,16,16),8)
-        screen.blit(nb,(W//2-nb.get_width()//2,12))
+        screen.blit(nb,
+            (W//2-nb.get_width()//2,12))
+
+    score = get_health_score()
+    hcol  = (GREEN if score>80 else
+             ORANGE if score>50 else RED)
+    pygame.draw.circle(screen,hcol,(W//2,18),3)
+
+    if BACKEND:
+        dot = font_small.render(".",True,GREEN)
+        screen.blit(dot,(W//2+8,10))
 
 def draw_home_bar():
     bx=W//2-50
-    pygame.draw.rect(screen,(*WHITE,90),(bx,H-8,100,4),border_radius=2)
+    pygame.draw.rect(screen,(*WHITE,90),
+        (bx,H-8,100,4),border_radius=2)
 
 def draw_lock_screen():
     screen.fill(BG)
@@ -571,20 +742,28 @@ def draw_lock_screen():
     time_str = now.strftime("%H:%M")
     date_str = now.strftime("%A, %d %B")
     ts = font_clock.render(time_str,True,WHITE)
-    ds = font_date.render(date_str, True,(*WHITE,180))
-    screen.blit(ts,(W//2-ts.get_width()//2, H//2-140))
-    screen.blit(ds,(W//2-ds.get_width()//2, H//2-60))
+    ds = font_date.render(date_str,True,(*WHITE,180))
+    screen.blit(ts,
+        (W//2-ts.get_width()//2,H//2-140))
+    screen.blit(ds,
+        (W//2-ds.get_width()//2,H//2-60))
     lock_anim.draw()
     if swipe_count == 0:
-        hint=font_hint.render("swipe left twice to unlock",True,(*WHITE,100))
+        hint=font_hint.render(
+            "swipe left twice to unlock",
+            True,(*WHITE,100))
     elif swipe_count == 1:
-        hint=font_hint.render("swipe left once more",True,(*WHITE,160))
+        hint=font_hint.render(
+            "swipe left once more",
+            True,(*WHITE,160))
     else:
         hint=font_hint.render("",True,WHITE)
-    screen.blit(hint,(W//2-hint.get_width()//2,H-50))
+    screen.blit(hint,
+        (W//2-hint.get_width()//2,H-50))
     for i in range(3):
         col2=WHITE if i<swipe_count else (*WHITE,40)
-        pygame.draw.circle(screen,col2,(W//2-8+i*8,H-30),3)
+        pygame.draw.circle(screen,col2,
+            (W//2-8+i*8,H-30),3)
     draw_home_bar()
 
 def draw_home_screen():
@@ -594,7 +773,7 @@ def draw_home_screen():
     time_str = now.strftime("%H:%M")
     date_str = now.strftime("%A, %B %d")
     ts=font_clock.render(time_str,True,WHITE)
-    ds=font_date.render(date_str, True,(*WHITE,160))
+    ds=font_date.render(date_str,True,(*WHITE,160))
     screen.blit(ts,(W//2-ts.get_width()//2,36))
     screen.blit(ds,(W//2-ds.get_width()//2,108))
 
@@ -610,18 +789,23 @@ def draw_home_screen():
         ix=pad+col2*(icon_size+pad)
         iy=start_y+row2*(icon_size+20+5)
         draw_icon(screen,app,ix,iy,icon_size)
-        lbl=font_label.render(app["name"],True,(*WHITE,200))
-        screen.blit(lbl,(ix+icon_size//2-lbl.get_width()//2,iy+icon_size+2))
+        lbl=font_label.render(app["name"],
+            True,(*WHITE,200))
+        screen.blit(lbl,
+            (ix+icon_size//2-lbl.get_width()//2,
+             iy+icon_size+2))
 
     dot_y=H-78
     for i in range(2):
         col3=WHITE if i==current_page else (*WHITE,70)
-        pygame.draw.circle(screen,col3,(W//2-6+i*12,dot_y),
+        pygame.draw.circle(screen,col3,
+            (W//2-6+i*12,dot_y),
             4 if i==current_page else 3)
 
     dock_y=H-70
     rr(screen,DOCK_BG,(12,dock_y,W-24,60),18)
-    dock_apps=[a for a in APPS if a["name"] in DOCK_NAMES]
+    dock_apps=[a for a in APPS
+               if a["name"] in DOCK_NAMES]
     dsz=46
     dpd=(W-24-len(dock_apps)*dsz)//(len(dock_apps)+1)
     for i,app in enumerate(dock_apps):
@@ -633,54 +817,78 @@ def draw_home_screen():
 def draw_app_screen():
     screen.fill(BG)
     draw_status_bar()
-    pygame.draw.line(screen,(40,40,55),(0,36),(W,36),1)
+    pygame.draw.line(screen,(40,40,55),
+        (0,36),(W,36),1)
     title=font_title.render(current_app,True,WHITE)
-    screen.blit(title,(W//2-title.get_width()//2,42))
+    screen.blit(title,
+        (W//2-title.get_width()//2,42))
     try:
         app_instances[current_app].draw()
     except Exception as e:
-        err=font_body.render(f"Error: {str(e)[:28]}",True,RED)
+        err=font_body.render(
+            f"Error: {str(e)[:28]}",True,RED)
         screen.blit(err,(10,H//2))
     draw_home_bar()
 
 def draw_settings():
     screen.fill(BG)
     draw_status_bar()
-    pygame.draw.line(screen,(40,40,55),(0,36),(W,36),1)
+    pygame.draw.line(screen,(40,40,55),
+        (0,36),(W,36),1)
     title=font_title.render("Settings",True,WHITE)
-    screen.blit(title,(W//2-title.get_width()//2,42))
+    screen.blit(title,
+        (W//2-title.get_width()//2,42))
 
     y=70-settings_scroll
     items_flat=[]
     for section in SETTINGS_SECTIONS:
-        sh=font_hint.render(section["title"].upper(),True,(*WHITE,100))
+        sh=font_hint.render(
+            section["title"].upper(),
+            True,(*WHITE,100))
         if 36<y<H-60:
             screen.blit(sh,(16,y))
         y+=22
         for item in section["items"]:
             if 36<y<H-60:
                 rr(screen,CARD,(12,y,W-24,36),8)
-                lbl=font_body.render(item["label"],True,WHITE)
+                lbl=font_body.render(
+                    item["label"],True,WHITE)
                 screen.blit(lbl,(20,y+10))
                 val=cfg.get(item["key"],"")
                 if item["type"]=="toggle":
                     col4=GREEN if val else (80,80,90)
-                    rr(screen,col4,(W-58,y+8,40,20),10)
+                    rr(screen,col4,
+                        (W-58,y+8,40,20),10)
                     cx3=W-38+10 if val else W-58+10
-                    pygame.draw.circle(screen,WHITE,(cx3,y+18),8)
+                    pygame.draw.circle(screen,WHITE,
+                        (cx3,y+18),8)
                 elif item["type"]=="slider":
                     bw=80
                     bx=W-100
-                    pygame.draw.rect(screen,(60,60,70),(bx,y+14,bw,8),border_radius=4)
+                    pygame.draw.rect(screen,
+                        (60,60,70),(bx,y+14,bw,8),
+                        border_radius=4)
                     fw2=int(bw*val/100)
-                    pygame.draw.rect(screen,BLUE,(bx,y+14,fw2,8),border_radius=4)
-                    pygame.draw.circle(screen,WHITE,(bx+fw2,y+18),6)
+                    pygame.draw.rect(screen,BLUE,
+                        (bx,y+14,fw2,8),border_radius=4)
+                    pygame.draw.circle(screen,WHITE,
+                        (bx+fw2,y+18),6)
                 elif item["type"] in ["text","info"]:
-                    vt=font_small.render(str(val)[:18],True,(*WHITE,140))
-                    screen.blit(vt,(W-vt.get_width()-16,y+12))
+                    vt=font_small.render(
+                        str(val)[:18],True,(*WHITE,140))
+                    screen.blit(vt,
+                        (W-vt.get_width()-16,y+12))
             items_flat.append({"y":y,"item":item})
             y+=44
         y+=8
+
+    if BACKEND:
+        backend_status = font_small.render(
+            "Backend: Connected" if BACKEND
+            else "Backend: Offline",
+            True, GREEN if BACKEND else RED)
+        screen.blit(backend_status,(16,H-24))
+
     draw_home_bar()
     return items_flat
 
@@ -693,6 +901,11 @@ def handle_settings_tap(pos,items):
             if itm["type"]=="toggle":
                 cfg[key]=not cfg.get(key,False)
                 save_settings(cfg)
+                if key=="wifi" and julius_bridge:
+                    if cfg[key]:
+                        julius_bridge.wifi_connect("","")
+                    else:
+                        julius_bridge.wifi_disconnect()
             elif itm["type"]=="slider":
                 bx=W-100
                 bw=80
@@ -701,7 +914,8 @@ def handle_settings_tap(pos,items):
                 save_settings(cfg)
 
 def get_tapped_app(pos):
-    page_apps=[a for a in APPS if a["page"]==current_page]
+    page_apps=[a for a in APPS
+               if a["page"]==current_page]
     cols=4
     pad=9
     icon_size=(W-pad*(cols+1))//cols
@@ -711,23 +925,57 @@ def get_tapped_app(pos):
         row2=i//cols
         ix=pad+col2*(icon_size+pad)
         iy=start_y+row2*(icon_size+20+5)
-        if ix<=pos[0]<=ix+icon_size and iy<=pos[1]<=iy+icon_size:
+        if (ix<=pos[0]<=ix+icon_size and
+                iy<=pos[1]<=iy+icon_size):
             return app["name"]
-    dock_apps=[a for a in APPS if a["name"] in DOCK_NAMES]
+    dock_apps=[a for a in APPS
+               if a["name"] in DOCK_NAMES]
     dsz=46
     dock_y=H-70
     dpd=(W-24-len(dock_apps)*dsz)//(len(dock_apps)+1)
     for i,app in enumerate(dock_apps):
         dx=12+dpd*(i+1)+dsz*i
-        if dx<=pos[0]<=dx+dsz and dock_y+7<=pos[1]<=dock_y+53:
+        if (dx<=pos[0]<=dx+dsz and
+                dock_y+7<=pos[1]<=dock_y+53):
             return app["name"]
     return None
 
-SPECIAL_APPS = {"AI","Drop","Cloud","Settings"}
+def open_app(name):
+    global current_app, state, show_ai
+    global show_drop, show_cloud, show_switcher
+
+    haptic.tap()
+
+    if julius_status:
+        julius_status.send_notification(
+            name, f"{name} opened", "")
+
+    if name == "Settings":
+        state = STATE_SETTINGS
+    elif name == "AI":
+        julius_ai.show()
+        show_ai = True
+    elif name == "Drop":
+        julius_drop.show()
+        show_drop = True
+    elif name == "Cloud":
+        julius_cloud.show()
+        show_cloud = True
+    elif name in app_instances:
+        current_app = name
+        state       = STATE_APP
+        app_switcher.add_recent(name)
+    else:
+        haptic.error()
 
 while True:
     for event in pygame.event.get():
         if event.type==pygame.QUIT:
+            if julius_status:
+                julius_status.send_notification(
+                    "Julius OS",
+                    "Shutting down",
+                    "Julius OS is closing")
             pygame.quit()
             sys.exit()
 
@@ -741,50 +989,40 @@ while True:
             dx=event.pos[0]-touch_start[0]
             dy=event.pos[1]-touch_start[1]
             elapsed=time.time()-touch_time
-            is_tap          = abs(dx)<14 and abs(dy)<14
-            is_swipe_left   = dx<-50 and abs(dy)<60
-            is_swipe_right  = dx>50  and abs(dy)<60
-            is_swipe_down   = dy>70  and abs(dx)<60
-            is_swipe_up     = dy<-50 and abs(dx)<60
-            from_top        = touch_start[1]<80
-            from_bottom     = touch_start[1]>H-100
-            is_long_press   = elapsed > 0.5 and is_tap
+            is_tap        = abs(dx)<14 and abs(dy)<14
+            is_swipe_left = dx<-50 and abs(dy)<60
+            is_swipe_right= dx>50  and abs(dy)<60
+            is_swipe_down = dy>70  and abs(dx)<60
+            is_swipe_up   = dy<-50 and abs(dx)<60
+            from_top      = touch_start[1]<80
+            from_bottom   = touch_start[1]>H-100
 
-            # App switcher overlay
             if show_switcher:
-                result = app_switcher.handle_touch(
+                result=app_switcher.handle_touch(
                     event.pos,
                     is_swipe_left=is_swipe_left,
-                    is_swipe_right=is_swipe_right
-                )
+                    is_swipe_right=is_swipe_right)
                 if is_swipe_down:
                     show_switcher=False
                     app_switcher.hide()
-                elif result and result != "closed":
-                    current_app   = result
-                    state         = STATE_APP
-                    show_switcher = False
-                    haptic.tap()
+                elif result and result!="closed":
+                    open_app(result)
+                    show_switcher=False
                 touch_start=None
                 continue
 
-            # Folder overlay
             if show_folder:
-                result = folder_mgr.handle_touch(
+                result=folder_mgr.handle_touch(
                     event.pos,
-                    is_swipe_down=is_swipe_down
-                )
-                if result == "closed":
-                    show_folder = False
+                    is_swipe_down=is_swipe_down)
+                if result=="closed":
+                    show_folder=False
                 elif result:
-                    current_app = result
-                    state       = STATE_APP
-                    show_folder = False
-                    haptic.tap()
+                    open_app(result)
+                    show_folder=False
                 touch_start=None
                 continue
 
-            # Other overlays
             if show_cc:
                 control_center.handle_touch(event.pos)
                 if is_swipe_down:
@@ -809,10 +1047,8 @@ while True:
                     show_spotlight=False
                 elif res and isinstance(res,dict):
                     if res.get("type")=="app":
-                        current_app=res["name"]
-                        state=STATE_APP
+                        open_app(res["name"])
                         show_spotlight=False
-                        haptic.tap()
                 touch_start=None
                 continue
 
@@ -841,7 +1077,6 @@ while True:
                 touch_start=None
                 continue
 
-            # Main state machine
             if state==STATE_LOCK:
                 if is_swipe_left:
                     swipe_count+=1
@@ -854,6 +1089,12 @@ while True:
                             state=STATE_HOME
                             swipe_count=0
                             haptic.unlock()
+                            if julius_status:
+                                julius_status\
+                                    .send_notification(
+                                    "Julius OS",
+                                    "Unlocked",
+                                    "Device unlocked")
 
             elif state==STATE_HOME:
                 if is_swipe_down and from_top:
@@ -864,7 +1105,8 @@ while True:
                     control_center.show()
                     show_cc=True
                     haptic.swipe()
-                elif is_swipe_up and not from_bottom and elapsed>0.3:
+                elif (is_swipe_up and not from_bottom
+                      and elapsed>0.4):
                     app_switcher.show()
                     show_switcher=True
                     haptic.long_press()
@@ -884,35 +1126,19 @@ while True:
                     haptic.swipe()
                 elif is_tap:
                     name=get_tapped_app(event.pos)
-                    if name=="Settings":
-                        state=STATE_SETTINGS
-                        haptic.tap()
-                    elif name=="AI":
-                        julius_ai.show()
-                        show_ai=True
-                        haptic.tap()
-                    elif name=="Drop":
-                        julius_drop.show()
-                        show_drop=True
-                        haptic.tap()
-                    elif name=="Cloud":
-                        julius_cloud.show()
-                        show_cloud=True
-                        haptic.tap()
-                    elif name:
-                        current_app=name
-                        state=STATE_APP
-                        app_switcher.add_recent(name)
-                        haptic.tap()
+                    if name:
+                        open_app(name)
 
             elif state==STATE_APP:
-                if is_swipe_right or (is_swipe_down and from_top):
+                if (is_swipe_right or
+                        (is_swipe_down and from_top)):
                     state=STATE_HOME
                     current_app=None
                     haptic.swipe()
                 elif is_tap:
                     try:
-                        app_instances[current_app].handle_input(event)
+                        app_instances[current_app]\
+                            .handle_input(event)
                     except:
                         pass
 
@@ -921,9 +1147,11 @@ while True:
                     state=STATE_HOME
                     haptic.swipe()
                 elif is_swipe_up:
-                    settings_scroll=min(settings_scroll+40,500)
+                    settings_scroll=min(
+                        settings_scroll+40,500)
                 elif is_tap:
-                    handle_settings_tap(event.pos,items_flat_cache)
+                    handle_settings_tap(
+                        event.pos,items_flat_cache)
                     haptic.tap()
 
             touch_start=None
@@ -935,8 +1163,7 @@ while True:
                     show_spotlight=False
                 elif res and isinstance(res,dict):
                     if res.get("type")=="app":
-                        current_app=res["name"]
-                        state=STATE_APP
+                        open_app(res["name"])
                         show_spotlight=False
             elif show_ai:
                 julius_ai.handle_key(event)
@@ -965,15 +1192,16 @@ while True:
                     swipe_count=0
             elif state==STATE_APP and current_app:
                 try:
-                    app_instances[current_app].handle_input(event)
+                    app_instances[current_app]\
+                        .handle_input(event)
                 except:
                     pass
 
         if event.type==pygame.MOUSEWHEEL:
             if state==STATE_SETTINGS:
-                settings_scroll=max(0,min(settings_scroll-event.y*20,500))
+                settings_scroll=max(0,min(
+                    settings_scroll-event.y*20,500))
 
-    # Draw base
     if state==STATE_LOCK:
         draw_lock_screen()
     elif state==STATE_HOME:
@@ -983,7 +1211,6 @@ while True:
     elif state==STATE_SETTINGS:
         items_flat_cache=draw_settings()
 
-    # Draw overlays on top
     if show_notif:
         notif_center.draw()
     if show_cc:
