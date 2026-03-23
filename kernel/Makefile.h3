@@ -1,0 +1,113 @@
+# =============================================================================
+# Julius OS — Linux 6.6 LTS cross-compile for Allwinner H3
+# Host: macOS M4 (arm64) / Linux x86_64
+# Target: Allwinner H3 Cortex-A7 (armv7-a, hard float)
+# Usage: make -f Makefile.h3 [target]
+# =============================================================================
+
+JULIUS_VERSION   := 1.4.0
+KERNEL_VERSION   := 6.6
+KERNEL_DIR       := $(HOME)/Desktop/JuliusOS/kernel/linux-$(KERNEL_VERSION)
+CROSS_COMPILE    := arm-linux-gnueabihf-
+ARCH             := arm
+JOBS             := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+
+OUT_DIR          := $(HOME)/Desktop/JuliusOS
+UIMAGE           := $(OUT_DIR)/zImage
+DTB              := $(OUT_DIR)/sun8i-h3-julius.dtb
+MODULES_DIR      := $(OUT_DIR)/modules
+
+JULIUS_KCONFIG   := $(CURDIR)/julius_h3_defconfig
+
+export ARCH CROSS_COMPILE
+
+.PHONY: all check_toolchain menuconfig defconfig kernel dtb modules install clean mrproper help
+
+all: check_toolchain kernel dtb modules
+	@echo ""
+	@echo "Julius OS v$(JULIUS_VERSION) kernel build complete"
+	@echo "zImage -> $(UIMAGE)"
+	@echo "DTB    -> $(DTB)"
+
+check_toolchain:
+	@which $(CROSS_COMPILE)gcc > /dev/null 2>&1 || \
+		(echo "ERROR: $(CROSS_COMPILE)gcc not found." && \
+		 echo "macOS:  brew install arm-linux-gnueabihf-binutils" && \
+		 echo "Linux:  sudo apt install gcc-arm-linux-gnueabihf" && \
+		 exit 1)
+	@echo "[OK] Toolchain: $$($(CROSS_COMPILE)gcc --version | head -1)"
+
+download:
+	@if [ ! -d "$(KERNEL_DIR)" ]; then \
+		echo "[+] Downloading Linux $(KERNEL_VERSION) LTS..."; \
+		mkdir -p $(dir $(KERNEL_DIR)); \
+		curl -L https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$(KERNEL_VERSION).tar.xz \
+			-o /tmp/linux-$(KERNEL_VERSION).tar.xz; \
+		tar -xf /tmp/linux-$(KERNEL_VERSION).tar.xz -C $(dir $(KERNEL_DIR)); \
+		echo "[OK] Kernel source ready"; \
+	else \
+		echo "[OK] Kernel source already present"; \
+	fi
+
+defconfig: download
+	@echo "[+] Applying Julius H3 kernel config..."
+	cp $(JULIUS_KCONFIG) $(KERNEL_DIR)/.config
+	$(MAKE) -C $(KERNEL_DIR) olddefconfig
+	@echo "[OK] Config applied"
+
+menuconfig: download
+	$(MAKE) -C $(KERNEL_DIR) menuconfig
+
+kernel: defconfig
+	@echo "[+] Building zImage ($(JOBS) jobs)..."
+	$(MAKE) -C $(KERNEL_DIR) zImage -j$(JOBS)
+	cp $(KERNEL_DIR)/arch/arm/boot/zImage $(UIMAGE)
+	@echo "[OK] zImage -> $(UIMAGE)"
+
+dtb: kernel
+	@echo "[+] Building Julius H3 device tree..."
+	cp $(CURDIR)/sun8i-h3-julius.dts \
+		$(KERNEL_DIR)/arch/arm/boot/dts/allwinner/sun8i-h3-julius.dts
+	grep -q "sun8i-h3-julius.dtb" \
+		$(KERNEL_DIR)/arch/arm/boot/dts/allwinner/Makefile || \
+		echo "dtb-\$$(CONFIG_MACH_SUN8I) += sun8i-h3-julius.dtb" >> \
+		$(KERNEL_DIR)/arch/arm/boot/dts/allwinner/Makefile
+	$(MAKE) -C $(KERNEL_DIR) dtbs -j$(JOBS)
+	cp $(KERNEL_DIR)/arch/arm/boot/dts/allwinner/sun8i-h3-julius.dtb $(DTB)
+	@echo "[OK] DTB -> $(DTB)"
+
+modules: kernel
+	@echo "[+] Building kernel modules..."
+	$(MAKE) -C $(KERNEL_DIR) modules -j$(JOBS)
+	mkdir -p $(MODULES_DIR)
+	$(MAKE) -C $(KERNEL_DIR) modules_install INSTALL_MOD_PATH=$(MODULES_DIR)
+	@echo "[OK] Modules -> $(MODULES_DIR)"
+
+install: modules
+	@echo "[+] Installing into Julius initramfs..."
+	INITRAMFS=$(OUT_DIR)/julius_initramfs_h3; \
+	mkdir -p $$INITRAMFS/{boot,lib/modules,proc,sys,dev,var/run,tmp}; \
+	cp $(UIMAGE) $$INITRAMFS/boot/; \
+	cp $(DTB) $$INITRAMFS/boot/; \
+	rsync -a $(MODULES_DIR)/ $$INITRAMFS/lib/modules/; \
+	cd $$INITRAMFS && find . | cpio -H newc -o | gzip -9 \
+		> $(OUT_DIR)/julius_initramfs_h3.cpio.gz
+	@echo "[OK] H3 initramfs -> $(OUT_DIR)/julius_initramfs_h3.cpio.gz"
+
+clean:
+	$(MAKE) -C $(KERNEL_DIR) clean
+
+mrproper:
+	$(MAKE) -C $(KERNEL_DIR) mrproper
+
+help:
+	@echo "Julius OS v$(JULIUS_VERSION) - H3 kernel build targets:"
+	@echo "  make -f Makefile.h3 download    Download Linux 6.6 source"
+	@echo "  make -f Makefile.h3 defconfig   Apply Julius H3 kernel config"
+	@echo "  make -f Makefile.h3 menuconfig  Interactive kernel config"
+	@echo "  make -f Makefile.h3 kernel      Build zImage"
+	@echo "  make -f Makefile.h3 dtb         Build device tree blob"
+	@echo "  make -f Makefile.h3 modules     Build kernel modules"
+	@echo "  make -f Makefile.h3 install     Package into initramfs"
+	@echo "  make -f Makefile.h3 all         Build everything"
+	@echo "  make -f Makefile.h3 clean       Clean build artifacts"
