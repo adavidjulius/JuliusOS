@@ -43,6 +43,8 @@ from apps.sysinfo.sysinfo                 import SysInfo
 from apps.firewall.firewall               import Firewall
 from apps.logviewer.logviewer             import LogViewer
 from apps.usbtools.usbtools               import USBTools
+from apps.radio.radio                     import Radio
+from apps.maps.maps                       import NetworkMap
 from system.control_center               import ControlCenter
 from system.notification_center          import NotificationCenter
 from system.spotlight                    import Spotlight
@@ -50,6 +52,10 @@ from system.julius_ai                    import JuliusAI
 from system.julius_drop                  import JuliusDrop
 from system.julius_cloud                 import JuliusCloud
 from system.lock_animation               import LockAnimation
+from system.boot_animation               import BootAnimation
+from system.app_switcher                 import AppSwitcher
+from system.haptic                       import HapticFeedback
+from system.folders                      import FolderManager, AppFolder
 
 W, H  = 320, 480
 FPS   = 60
@@ -81,7 +87,7 @@ DEFAULT_SETTINGS = {
     "hotspot"      : False,
     "admin_device" : "",
     "device_name"  : "Julius",
-    "version"      : "Julius OS v1.1",
+    "version"      : "Julius OS v1.2",
 }
 
 def load_settings():
@@ -133,6 +139,8 @@ APPS = [
     {"name":"Drop",      "bg":(0,30,50),    "ac":(90,200,250),  "page":1},
     {"name":"Cloud",     "bg":(20,0,50),    "ac":(191,90,242),  "page":1},
     {"name":"AI",        "bg":(26,0,51),    "ac":(191,90,242),  "page":1},
+    {"name":"Radio",     "bg":(50,0,20),    "ac":(255,45,85),   "page":1},
+    {"name":"Maps",      "bg":(0,30,50),    "ac":(0,200,255),   "page":1},
     {"name":"Settings",  "bg":(28,28,32),   "ac":(142,142,147), "page":1},
 ]
 
@@ -214,6 +222,8 @@ app_instances = {
     "Firewall"  : Firewall(screen, font_small),
     "Logs"      : LogViewer(screen, font_small),
     "USB"       : USBTools(screen, font_small),
+    "Radio"     : Radio(screen, font_small),
+    "Maps"      : NetworkMap(screen, font_small),
 }
 
 control_center = ControlCenter(screen, font_title, font_small, cfg, save_settings)
@@ -223,6 +233,30 @@ julius_ai      = JuliusAI(screen, font_body, font_small)
 julius_drop    = JuliusDrop(screen, font_body, font_small)
 julius_cloud   = JuliusCloud(screen, font_body, font_small)
 lock_anim      = LockAnimation(screen, W, H)
+boot_anim      = BootAnimation(screen, W, H)
+app_switcher   = AppSwitcher(screen, W, H, app_instances, APPS)
+haptic         = HapticFeedback()
+folder_mgr     = FolderManager(screen, W, H, draw_icon if 'draw_icon' in dir() else None)
+
+FOLDERS = [
+    AppFolder("Network", [
+        a for a in APPS if a["name"] in [
+            "WiFi","Scanner","NetTools","Packets",
+            "NetMon","NetMapper","Hotspot","SpeedTest"
+        ]], (0,30,60)),
+    AppFolder("Security", [
+        a for a in APPS if a["name"] in [
+            "Firewall","Passwords","Hasher",
+            "Encoder","ProcKill","SSH"
+        ]], (50,0,30)),
+    AppFolder("Tools", [
+        a for a in APPS if a["name"] in [
+            "GPIO","IR","Bluetooth","USB",
+            "WakeOnLAN","Transfer"
+        ]], (30,20,0)),
+]
+
+boot_anim.play()
 
 STATE_LOCK     = "lock"
 STATE_HOME     = "home"
@@ -244,9 +278,8 @@ show_spotlight    = False
 show_ai           = False
 show_drop         = False
 show_cloud        = False
-
-fp_scanning       = False
-fp_start_time     = 0
+show_switcher     = False
+show_folder       = False
 
 def rr(surf, color, rect, radius):
     x, y, w, h = rect
@@ -255,6 +288,8 @@ def rr(surf, color, rect, radius):
     pygame.draw.rect(surf, color, (x, y+r, w, h-2*r))
     for cx2, cy2 in [(x+r,y+r),(x+w-r,y+r),(x+r,y+h-r),(x+w-r,y+h-r)]:
         pygame.draw.circle(surf, color, (cx2,cy2), r)
+
+folder_mgr.draw_icon = lambda surf,app,x,y,size=60: draw_icon(surf,app,x,y,size)
 
 def draw_icon(surf, app, x, y, size=60):
     ac   = app["ac"]
@@ -462,6 +497,19 @@ def draw_icon(surf, app, x, y, size=60):
             pygame.draw.line(surf,(*ac,120),
                 (cx2+int(math.cos(r3)*10),cy2+int(math.sin(r3)*10)),
                 (cx2+int(math.cos(r3)*16),cy2+int(math.sin(r3)*16)),2)
+    elif name == "Radio":
+        for rad2,op in [(12,80),(8,150),(4,220)]:
+            pygame.draw.arc(surf,(*ac,op),
+                (cx2-rad2,cy2-rad2,rad2*2,rad2),0,math.pi,2)
+        pygame.draw.line(surf,ac,(cx2,cy2),(cx2,cy2+10),2)
+        pygame.draw.line(surf,ac,(cx2-4,cy2+10),(cx2+4,cy2+10),2)
+    elif name == "Maps":
+        for rad2,op in [(12,50),(8,120),(4,200)]:
+            pygame.draw.circle(surf,(*ac,op),(cx2,cy2),rad2,1)
+        pygame.draw.circle(surf,ac,(cx2,cy2),2)
+        pygame.draw.line(surf,(*ac,80),(x+4,cy2),(x+size-4,cy2),1)
+        pygame.draw.line(surf,(*ac,80),(cx2,y+4),(cx2,y+size-4),1)
+        pygame.draw.circle(surf,ac,(cx2+4,cy2-4),3)
     elif name == "Settings":
         pygame.draw.circle(surf,ac,(cx2,cy2),5,2)
         for ang in range(0,360,45):
@@ -475,19 +523,38 @@ def draw_icon(surf, app, x, y, size=60):
         t3=font_small.render(name[:3],True,ac)
         surf.blit(t3,(cx2-t3.get_width()//2,cy2-t3.get_height()//2))
 
+folder_mgr.draw_icon = draw_icon
+
+def get_battery_level():
+    try:
+        with open("/sys/class/power_supply/battery/capacity") as f:
+            return int(f.read().strip())
+    except:
+        return 85
+
 def draw_status_bar():
     now = datetime.datetime.now()
     t   = now.strftime("%H:%M")
     ts  = font_status.render(t, True, WHITE)
     screen.blit(ts, (16, 12))
+
+    battery_level = get_battery_level()
+    bat_col = GREEN if battery_level > 20 else RED
+    bat_pct = font_small.render(f"{battery_level}%", True, bat_col)
+    screen.blit(bat_pct, (W-bat_pct.get_width()-58, 12))
+
     bat_x = W-52
     pygame.draw.rect(screen,WHITE,(bat_x,12,28,13),1,border_radius=3)
     pygame.draw.rect(screen,WHITE,(bat_x+28,15,3,7),border_radius=1)
-    pygame.draw.rect(screen,GREEN,(bat_x+2,14,22,9),border_radius=2)
+    fw = int(22*battery_level/100)
+    pygame.draw.rect(screen,bat_col,(bat_x+2,14,fw,9),border_radius=2)
+
     for i in range(3):
         bx=W-92+i*7
         bh=5+i*2
-        pygame.draw.rect(screen,(*WHITE,80+i*60),(bx,18-bh//2,5,bh),border_radius=1)
+        pygame.draw.rect(screen,(*WHITE,80+i*60),
+            (bx,18-bh//2,5,bh),border_radius=1)
+
     unread = notif_center.unread_count()
     if unread > 0:
         nb = font_small.render(str(unread),True,WHITE)
@@ -505,11 +572,9 @@ def draw_lock_screen():
     date_str = now.strftime("%A, %d %B")
     ts = font_clock.render(time_str,True,WHITE)
     ds = font_date.render(date_str, True,(*WHITE,180))
-    screen.blit(ts,(W//2-ts.get_width()//2,H//2-140))
-    screen.blit(ds,(W//2-ds.get_width()//2,H//2-60))
-
+    screen.blit(ts,(W//2-ts.get_width()//2, H//2-140))
+    screen.blit(ds,(W//2-ds.get_width()//2, H//2-60))
     lock_anim.draw()
-
     if swipe_count == 0:
         hint=font_hint.render("swipe left twice to unlock",True,(*WHITE,100))
     elif swipe_count == 1:
@@ -517,11 +582,9 @@ def draw_lock_screen():
     else:
         hint=font_hint.render("",True,WHITE)
     screen.blit(hint,(W//2-hint.get_width()//2,H-50))
-
     for i in range(3):
         col2=WHITE if i<swipe_count else (*WHITE,40)
         pygame.draw.circle(screen,col2,(W//2-8+i*8,H-30),3)
-
     draw_home_bar()
 
 def draw_home_screen():
@@ -568,9 +631,6 @@ def draw_home_screen():
     draw_home_bar()
 
 def draw_app_screen():
-    app=next((a for a in APPS if a["name"]==current_app),None)
-    if not app:
-        return
     screen.fill(BG)
     draw_status_bar()
     pygame.draw.line(screen,(40,40,55),(0,36),(W,36),1)
@@ -612,16 +672,15 @@ def draw_settings():
                     bw=80
                     bx=W-100
                     pygame.draw.rect(screen,(60,60,70),(bx,y+14,bw,8),border_radius=4)
-                    fw=int(bw*val/100)
-                    pygame.draw.rect(screen,BLUE,(bx,y+14,fw,8),border_radius=4)
-                    pygame.draw.circle(screen,WHITE,(bx+fw,y+18),6)
+                    fw2=int(bw*val/100)
+                    pygame.draw.rect(screen,BLUE,(bx,y+14,fw2,8),border_radius=4)
+                    pygame.draw.circle(screen,WHITE,(bx+fw2,y+18),6)
                 elif item["type"] in ["text","info"]:
                     vt=font_small.render(str(val)[:18],True,(*WHITE,140))
                     screen.blit(vt,(W-vt.get_width()-16,y+12))
             items_flat.append({"y":y,"item":item})
             y+=44
         y+=8
-
     draw_home_bar()
     return items_flat
 
@@ -664,6 +723,8 @@ def get_tapped_app(pos):
             return app["name"]
     return None
 
+SPECIAL_APPS = {"AI","Drop","Cloud","Settings"}
+
 while True:
     for event in pygame.event.get():
         if event.type==pygame.QUIT:
@@ -679,6 +740,7 @@ while True:
                 continue
             dx=event.pos[0]-touch_start[0]
             dy=event.pos[1]-touch_start[1]
+            elapsed=time.time()-touch_time
             is_tap          = abs(dx)<14 and abs(dy)<14
             is_swipe_left   = dx<-50 and abs(dy)<60
             is_swipe_right  = dx>50  and abs(dy)<60
@@ -686,23 +748,60 @@ while True:
             is_swipe_up     = dy<-50 and abs(dx)<60
             from_top        = touch_start[1]<80
             from_bottom     = touch_start[1]>H-100
+            is_long_press   = elapsed > 0.5 and is_tap
 
-            # Handle overlays first
+            # App switcher overlay
+            if show_switcher:
+                result = app_switcher.handle_touch(
+                    event.pos,
+                    is_swipe_left=is_swipe_left,
+                    is_swipe_right=is_swipe_right
+                )
+                if is_swipe_down:
+                    show_switcher=False
+                    app_switcher.hide()
+                elif result and result != "closed":
+                    current_app   = result
+                    state         = STATE_APP
+                    show_switcher = False
+                    haptic.tap()
+                touch_start=None
+                continue
+
+            # Folder overlay
+            if show_folder:
+                result = folder_mgr.handle_touch(
+                    event.pos,
+                    is_swipe_down=is_swipe_down
+                )
+                if result == "closed":
+                    show_folder = False
+                elif result:
+                    current_app = result
+                    state       = STATE_APP
+                    show_folder = False
+                    haptic.tap()
+                touch_start=None
+                continue
+
+            # Other overlays
             if show_cc:
-                if control_center.handle_touch(event.pos):
-                    if is_swipe_down:
-                        show_cc=False
-                        control_center.hide()
-                    touch_start=None
-                    continue
+                control_center.handle_touch(event.pos)
+                if is_swipe_down:
+                    show_cc=False
+                    control_center.hide()
+                    haptic.swipe()
+                touch_start=None
+                continue
 
             if show_notif:
-                if notif_center.handle_touch(event.pos):
-                    if is_swipe_up:
-                        show_notif=False
-                        notif_center.hide()
-                    touch_start=None
-                    continue
+                notif_center.handle_touch(event.pos)
+                if is_swipe_up:
+                    show_notif=False
+                    notif_center.hide()
+                    haptic.swipe()
+                touch_start=None
+                continue
 
             if show_spotlight:
                 res=spotlight_sys.handle_touch(event.pos)
@@ -713,6 +812,7 @@ while True:
                         current_app=res["name"]
                         state=STATE_APP
                         show_spotlight=False
+                        haptic.tap()
                 touch_start=None
                 continue
 
@@ -721,6 +821,7 @@ while True:
                 if is_swipe_right or is_swipe_down:
                     show_ai=False
                     julius_ai.hide()
+                    haptic.swipe()
                 touch_start=None
                 continue
 
@@ -740,10 +841,11 @@ while True:
                 touch_start=None
                 continue
 
-            # State machine
+            # Main state machine
             if state==STATE_LOCK:
                 if is_swipe_left:
                     swipe_count+=1
+                    haptic.swipe()
                     if swipe_count>=2:
                         lock_anim.start_scan()
                         result=True
@@ -751,45 +853,63 @@ while True:
                         if result:
                             state=STATE_HOME
                             swipe_count=0
+                            haptic.unlock()
 
             elif state==STATE_HOME:
                 if is_swipe_down and from_top:
                     notif_center.show()
                     show_notif=True
+                    haptic.swipe()
                 elif is_swipe_up and from_bottom:
                     control_center.show()
                     show_cc=True
+                    haptic.swipe()
+                elif is_swipe_up and not from_bottom and elapsed>0.3:
+                    app_switcher.show()
+                    show_switcher=True
+                    haptic.long_press()
                 elif is_swipe_up and not from_bottom:
                     spotlight_sys.show()
                     show_spotlight=True
+                    haptic.swipe()
                 elif is_swipe_down and not from_top:
                     state=STATE_LOCK
                     swipe_count=0
+                    haptic.swipe()
                 elif is_swipe_left and current_page==0:
                     current_page=1
+                    haptic.swipe()
                 elif is_swipe_right and current_page==1:
                     current_page=0
+                    haptic.swipe()
                 elif is_tap:
                     name=get_tapped_app(event.pos)
                     if name=="Settings":
                         state=STATE_SETTINGS
+                        haptic.tap()
                     elif name=="AI":
                         julius_ai.show()
                         show_ai=True
+                        haptic.tap()
                     elif name=="Drop":
                         julius_drop.show()
                         show_drop=True
+                        haptic.tap()
                     elif name=="Cloud":
                         julius_cloud.show()
                         show_cloud=True
+                        haptic.tap()
                     elif name:
                         current_app=name
                         state=STATE_APP
+                        app_switcher.add_recent(name)
+                        haptic.tap()
 
             elif state==STATE_APP:
                 if is_swipe_right or (is_swipe_down and from_top):
                     state=STATE_HOME
                     current_app=None
+                    haptic.swipe()
                 elif is_tap:
                     try:
                         app_instances[current_app].handle_input(event)
@@ -799,10 +919,12 @@ while True:
             elif state==STATE_SETTINGS:
                 if is_swipe_right or is_swipe_down:
                     state=STATE_HOME
+                    haptic.swipe()
                 elif is_swipe_up:
                     settings_scroll=min(settings_scroll+40,500)
                 elif is_tap:
                     handle_settings_tap(event.pos,items_flat_cache)
+                    haptic.tap()
 
             touch_start=None
 
@@ -821,7 +943,13 @@ while True:
                 if event.key==pygame.K_ESCAPE:
                     show_ai=False
             elif event.key==pygame.K_ESCAPE:
-                if show_cc:
+                if show_switcher:
+                    show_switcher=False
+                    app_switcher.hide()
+                elif show_folder:
+                    show_folder=False
+                    folder_mgr.close()
+                elif show_cc:
                     show_cc=False
                     control_center.hide()
                 elif show_notif:
@@ -845,7 +973,7 @@ while True:
             if state==STATE_SETTINGS:
                 settings_scroll=max(0,min(settings_scroll-event.y*20,500))
 
-    # Draw
+    # Draw base
     if state==STATE_LOCK:
         draw_lock_screen()
     elif state==STATE_HOME:
@@ -855,7 +983,7 @@ while True:
     elif state==STATE_SETTINGS:
         items_flat_cache=draw_settings()
 
-    # Overlays on top
+    # Draw overlays on top
     if show_notif:
         notif_center.draw()
     if show_cc:
@@ -868,6 +996,10 @@ while True:
         julius_drop.draw()
     if show_cloud:
         julius_cloud.draw()
+    if show_switcher:
+        app_switcher.draw()
+    if show_folder:
+        folder_mgr.draw()
 
     pygame.display.flip()
     clock.tick(FPS)
