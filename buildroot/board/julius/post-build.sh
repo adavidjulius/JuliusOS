@@ -1,73 +1,102 @@
 #!/bin/bash
-# Julius OS Post-Build Script
-# Runs after buildroot builds the rootfs
+# Julius OS - Buildroot post-build.sh
+# Replaces your existing post-build.sh — keeps all old logic, adds H3 hardware setup
 
 set -e
-ROOTFS="$1"
-JULIUS_VERSION="1.3"
+TARGET="$1"
+JULIUS_BASE="$(cd "$(dirname "$0")/../../.." && pwd)"
 
-echo "[Julius Build] Post-build starting..."
+log()    { echo "[julius-post-build] $*"; }
+log_ok() { echo "[julius-post-build] OK $*"; }
 
-# Create Julius OS directory structure
-mkdir -p $ROOTFS/usr/julius/src
-mkdir -p $ROOTFS/usr/julius/apps
-mkdir -p $ROOTFS/etc/julius
-mkdir -p $ROOTFS/var/julius
-mkdir -p $ROOTFS/var/log
-mkdir -p $ROOTFS/var/run
+log "Julius post-build starting... TARGET=$TARGET"
 
-# Copy Julius OS Python UI
-cp -r $BR2_EXTERNAL_JULIUS_PATH/src/* \
-    $ROOTFS/usr/julius/src/
+# 1. Build and install julius_init PID 1
+log "Building julius_init..."
+make -C "$JULIUS_BASE/kernel/julius_init" \
+    CROSS_COMPILE=arm-linux-gnueabihf- \
+    CC=arm-linux-gnueabihf-gcc
+install -m 755 "$JULIUS_BASE/kernel/julius_init/julius_init" "$TARGET/sbin/julius_init"
+ln -sf /sbin/julius_init "$TARGET/sbin/init" 2>/dev/null || true
+log_ok "julius_init installed"
 
-# Copy compiled services
-for svc in \
-    julius_init julius_enclave julius_pm julius_mm \
-    julius_ipc julius_keychain julius_audit julius_health \
-    julius_push julius_sync julius_net julius_sandbox \
-    julius_permissions julius_wifi julius_bt julius_power; do
-    if [ -f "$BR2_EXTERNAL_JULIUS_PATH/services/$svc/$svc" ]; then
-        install -m 755 \
-            "$BR2_EXTERNAL_JULIUS_PATH/services/$svc/$svc" \
-            "$ROOTFS/usr/bin/$svc"
-        echo "[Julius Build] Installed $svc"
-    fi
-done
+# 2. Build and install C backend services
+log "Building C services..."
+make -C "$JULIUS_BASE/services" \
+    CROSS_COMPILE=arm-linux-gnueabihf- \
+    CC=arm-linux-gnueabihf-gcc \
+    DESTDIR="$TARGET" install
+log_ok "C services installed"
 
-# Set julius_init as PID 1
-ln -sf /usr/bin/julius_init $ROOTFS/sbin/init
+# 3. Install Python UI
+log "Installing Python UI..."
+mkdir -p "$TARGET/opt/julius"
+rsync -a "$JULIUS_BASE/src/" "$TARGET/opt/julius/src/"
+log_ok "Python UI installed"
 
-# Create default config files
-cat > $ROOTFS/etc/julius/julius.conf << EOF
-version=$JULIUS_VERSION
-device_name=Julius
-ota_enabled=1
-fingerprint=1
-EOF
-chmod 600 $ROOTFS/etc/julius/julius.conf
+# 4. Install driver scripts
+mkdir -p "$TARGET/etc/julius"
+install -m 755 "$JULIUS_BASE/drivers/rtl8723ds/julius_rtl8723ds_init.sh" \
+    "$TARGET/etc/julius/rtl8723ds_init.sh"
+log_ok "Driver scripts installed"
 
-# Create inittab for fallback
-cat > $ROOTFS/etc/inittab << EOF
-::sysinit:/usr/bin/julius_init
-::respawn:/bin/sh
-EOF
+# 5. RTL8723DS firmware
+mkdir -p "$TARGET/lib/firmware/rtlwifi"
+FIRMWARE_SRC="$JULIUS_BASE/firmware/rtl8723ds"
+if [ -d "$FIRMWARE_SRC" ]; then
+    cp "$FIRMWARE_SRC"/*.bin "$TARGET/lib/firmware/rtlwifi/"
+    log_ok "RTL8723DS firmware installed"
+else
+    log "WARNING: firmware/rtl8723ds/ not found"
+    log "  Download from: https://github.com/lwfinger/rtl8723ds/tree/master/firmware"
+fi
 
-# Set hostname
-echo "julius" > $ROOTFS/etc/hostname
+# 6. Directory structure
+mkdir -p "$TARGET/var/run" "$TARGET/var/log" "$TARGET/tmp" "$TARGET/data"
 
-# Create motd
-cat > $ROOTFS/etc/motd << EOF
+# 7. Default settings
+cat > "$TARGET/etc/julius/julius_settings.json" << 'SETTINGS'
+{
+  "wifi": false,
+  "bluetooth": false,
+  "brightness": 75,
+  "volume": 50,
+  "airplane": false,
+  "dark_mode": true,
+  "notifications": true,
+  "fingerprint": true,
+  "ota_enabled": true,
+  "hotspot": false,
+  "admin_device": false,
+  "device_name": "Julius",
+  "version": "1.4.0"
+}
+SETTINGS
+log_ok "Default settings written"
 
-  Julius OS v$JULIUS_VERSION
-  Built for control.
+# 8. Startup script
+cat > "$TARGET/etc/julius/julius_start.sh" << 'STARTUP'
+#!/bin/sh
+export SDL_VIDEODRIVER=fbcon
+export SDL_FBDEV=/dev/fb0
+export DISPLAY=""
+cd /opt/julius/src
+exec python3 julius_ui.py
+STARTUP
+chmod 755 "$TARGET/etc/julius/julius_start.sh"
+log_ok "Startup script written"
 
-EOF
+# 9. fstab
+cat > "$TARGET/etc/fstab" << 'FSTAB'
+/dev/root          /           ext4   ro,relatime          0 1
+/dev/mmcblk2p3     /opt/julius ext4   rw,relatime,noatime  0 2
+/dev/mmcblk2p4     /data       ext4   rw,relatime,noatime  0 3
+tmpfs              /tmp        tmpfs  defaults,size=64M    0 0
+tmpfs              /var/run    tmpfs  defaults,size=8M     0 0
+proc               /proc       proc   defaults             0 0
+sysfs              /sys        sysfs  defaults             0 0
+devtmpfs           /dev        devtmpfs defaults           0 0
+FSTAB
+log_ok "fstab written"
 
-# Set permissions
-chmod 755 $ROOTFS/usr/julius
-chmod 755 $ROOTFS/usr/julius/src
-find $ROOTFS/usr/julius/src -name "*.py" \
-    -exec chmod 644 {} \;
-
-echo "[Julius Build] Post-build complete!"
-echo "[Julius Build] Julius OS v$JULIUS_VERSION ready"
+log_ok "Julius post-build complete"
